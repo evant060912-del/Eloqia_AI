@@ -149,3 +149,75 @@ During this version, I learned:
 * The importance of design before advanced development
 * How to document the evolution of a software project
 * How professional applications are built progressively
+
+---
+
+# [v0.3.0] — 31 July 2026
+
+## 🌌 Premium Visual Experience
+
+The third milestone of Eloqia AI was completed.
+
+This version focuses on transforming the first visual prototype into a more immersive, premium, and futuristic application experience.
+
+---
+
+## ✨ Added
+
+### Premium Splash Screen Experience
+
+Enhanced the Eloqia AI startup experience:
+
+* Added a redesigned premium Splash Screen
+* Added advanced logo animation system
+* Added smooth fade and scale animations
+* Added dynamic AI glow effects
+* Added improved startup transition experience
+
+---
+
+### Branding & Visual Identity
+
+Improved the Eloqia AI visual direction:
+
+* Integrated the official Eloqia AI logo asset
+* Improved logo positioning and presentation
+* Created a stronger premium AI brand feeling
+* Reinforced the futuristic dark visual identity
+
+---
+
+### Home Experience Improvements
+
+Enhanced the first application experience:
+
+* Improved the Home Screen foundation
+* Improved AI Tutor presentation
+* Continued development of the Mia AI tutor experience
+* Prepared the interface for future AI interactions
+
+---
+
+## 🔧 Improved
+
+Improved the overall application quality:
+
+* Improved Flutter UI structure
+* Improved Splash Screen responsiveness
+* Improved visual consistency
+* Improved animation quality
+* Improved asset management
+* Fixed logo asset integration issues
+
+---
+
+## 📚 What I Learned
+
+During this version, I learned:
+
+* How to create more advanced Flutter animations
+* How to manage and integrate application assets correctly
+* How important visual details are in professional applications
+* How to improve an interface through iterative design
+* How real software products evolve through continuous refinement
+

@@ -1,48 +1,28 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../home/home_screen.dart';
 import '../../theme/app_colors.dart';
+import '../home/home_screen.dart';
 
 
 class SplashScreen extends StatefulWidget {
-
   const SplashScreen({super.key});
+
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
-
 }
 
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
 
 
-  late AnimationController _fadeController;
-  late AnimationController _scaleController;
-  late AnimationController _pulseController;
-
+  late AnimationController _controller;
 
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _pulseAnimation;
-
-
-  final List<String> _loadingMessages = [
-
-    "Initializing Eloqia AI...",
-    "Loading language intelligence...",
-    "Preparing AI tutors...",
-    "Creating your learning universe...",
-
-  ];
-
-
-  int _messageIndex = 0;
-  Timer? _messageTimer;
-  Timer? _navigationTimer;
+  late Animation<double> _glowAnimation;
+  late Animation<double> _textAnimation;
 
 
 
@@ -52,181 +32,101 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
 
-    _fadeController = AnimationController(
-
-      duration: const Duration(seconds: 2),
-
+    _controller = AnimationController(
       vsync: this,
-
+      duration: const Duration(seconds: 3),
     );
 
 
     _fadeAnimation = CurvedAnimation(
-
-      parent: _fadeController,
-
-      curve: Curves.easeInOut,
-
-    );
-
-
-
-    _scaleController = AnimationController(
-
-      duration: const Duration(seconds: 2),
-
-      vsync: this,
-
+      parent: _controller,
+      curve: Curves.easeOut,
     );
 
 
     _scaleAnimation = Tween<double>(
-
-      begin: 0.75,
-
-      end: 1,
-
+      begin: 0.7,
+      end: 1.0,
     ).animate(
-
       CurvedAnimation(
-
-        parent: _scaleController,
-
-        curve: Curves.easeOutBack,
-
+        parent: _controller,
+        curve: Curves.elasticOut,
       ),
-
     );
 
 
-
-    _pulseController = AnimationController(
-
-      duration: const Duration(seconds: 2),
-
-      vsync: this,
-
-    )
-      ..repeat(reverse: true);
-
-
-
-    _pulseAnimation = Tween<double>(
-
-      begin: 0.95,
-
-      end: 1.05,
-
+    _glowAnimation = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
     ).animate(
-
       CurvedAnimation(
-
-        parent: _pulseController,
-
+        parent: _controller,
         curve: Curves.easeInOut,
-
       ),
-
     );
 
 
-
-    _fadeController.forward();
-    _scaleController.forward();
-
-
-
-    _startLoadingMessages();
-
-    _goToHome();
-
-  }
-
-
-
-  void _startLoadingMessages() {
-
-
-    _messageTimer = Timer.periodic(
-
-      const Duration(milliseconds: 900),
-
-      (timer) {
-
-
-        if (!mounted) return;
-
-
-        setState(() {
-
-          _messageIndex =
-              (_messageIndex + 1) % _loadingMessages.length;
-
-        });
-
-
-      },
-
+    _textAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(
+          0.45,
+          1.0,
+          curve: Curves.easeOut,
+        ),
+      ),
     );
 
 
-  }
+    _controller.forward();
 
 
 
-
-  void _goToHome() {
-
-
-    _navigationTimer = Timer(
-
-      const Duration(seconds: 5),
-
+    Future.delayed(
+      const Duration(seconds: 4),
       () {
-
 
         if (!mounted) return;
 
 
         Navigator.pushReplacement(
-
           context,
+          PageRouteBuilder(
+            transitionDuration:
+                const Duration(milliseconds: 900),
 
-          MaterialPageRoute(
+            pageBuilder:
+                (_, animation, secondaryAnimation) =>
+                    const HomeScreen(),
 
-            builder: (_) => const HomeScreen(),
+            transitionsBuilder:
+                (_, animation, secondaryAnimation, child) {
+
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+
+            },
 
           ),
-
         );
-
 
       },
 
     );
 
-
   }
-
-
 
 
 
   @override
   void dispose() {
 
-
-    _fadeController.dispose();
-
-    _scaleController.dispose();
-
-    _pulseController.dispose();
-
-
-    _messageTimer?.cancel();
-
-    _navigationTimer?.cancel();
-
+    _controller.dispose();
 
     super.dispose();
 
@@ -242,346 +142,297 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
 
-
-      body: Container(
-
-
-        decoration: const BoxDecoration(
+      backgroundColor:
+          AppColors.background,
 
 
-          gradient: LinearGradient(
+      body: Stack(
 
-            colors: [
+        alignment:
+            Alignment.center,
 
-              Color(0xFF020617),
 
-              Color(0xFF071A33),
+        children: [
 
-              Color(0xFF001F3F),
 
-            ],
 
-            begin: Alignment.topCenter,
+          // Halo lumineux IA
 
-            end: Alignment.bottomCenter,
+          AnimatedBuilder(
+
+            animation:
+                _glowAnimation,
+
+
+            builder:
+                (context, child) {
+
+
+              return Container(
+
+                width:
+                    420 * _glowAnimation.value,
+
+
+                height:
+                    420 * _glowAnimation.value,
+
+
+                decoration:
+                    BoxDecoration(
+
+                  shape:
+                      BoxShape.circle,
+
+
+                  gradient:
+                      RadialGradient(
+
+                    colors: [
+
+                      AppColors.primary.withOpacity(
+                        0.35 *
+                            _glowAnimation.value,
+                      ),
+
+
+                      AppColors.secondary.withOpacity(
+                        0.20 *
+                            _glowAnimation.value,
+                      ),
+
+
+                      Colors.transparent,
+
+                    ],
+
+                  ),
+
+                ),
+
+              );
+
+
+            },
 
           ),
 
-        ),
 
 
 
-        child: Stack(
+          // Contenu principal centré
+
+          Center(
+
+            child: Column(
+
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
 
 
-          children: [
+              crossAxisAlignment:
+                  CrossAxisAlignment.center,
+
+
+              children: [
 
 
 
-            Center(
+                // Logo Eloqia AI
+
+                FadeTransition(
+
+                  opacity:
+                      _fadeAnimation,
 
 
-              child: AnimatedBuilder(
+                  child: ScaleTransition(
+
+                    scale:
+                        _scaleAnimation,
 
 
-                animation: _pulseAnimation,
+                    child: Container(
+
+                      width:
+                          330,
 
 
-                builder: (context, child) {
+                      height:
+                          330,
 
 
-                  return Container(
+                      alignment:
+                          Alignment.center,
 
 
-                    width: 240 * _pulseAnimation.value,
+                      decoration:
+                          BoxDecoration(
 
-                    height: 240 * _pulseAnimation.value,
-
-
-                    decoration: BoxDecoration(
-
-
-                      shape: BoxShape.circle,
+                        shape:
+                            BoxShape.circle,
 
 
-                      boxShadow: [
+                        boxShadow: [
+
+                          BoxShadow(
+
+                            color:
+                                AppColors.primary.withOpacity(0.55),
 
 
-                        BoxShadow(
+                            blurRadius:
+                                90,
 
 
-                          color: AppColors.primary.withOpacity(0.45),
+                            spreadRadius:
+                                20,
 
-                          blurRadius: 100,
+                          ),
 
-                          spreadRadius: 25,
+                        ],
+
+                      ),
 
 
-                        ),
+
+                      child: Image.asset(
+
+                        "assets/branding/logo/logo_concept_v1.png",
 
 
-                      ],
+                        width:
+                            300,
 
+
+                        height:
+                            300,
+
+
+                        fit:
+                            BoxFit.contain,
+
+                      ),
 
                     ),
 
+                  ),
 
-                  );
-
-
-                },
-
-
-              ),
-
-
-            ),
+                ),
 
 
 
 
-            Center(
+                const SizedBox(height: 45),
 
 
-              child: FadeTransition(
 
 
-                opacity: _fadeAnimation,
+                // Texte
 
+                FadeTransition(
 
-                child: ScaleTransition(
-
-
-                  scale: _scaleAnimation,
+                  opacity:
+                      _textAnimation,
 
 
                   child: Column(
-
-
-                    mainAxisAlignment: MainAxisAlignment.center,
-
 
                     children: [
 
 
 
-                      AnimatedBuilder(
+                      Text(
+
+                        "ELOQIA AI",
 
 
-                        animation: _pulseAnimation,
+                        style:
+                            TextStyle(
+
+                          color:
+                              Colors.white,
 
 
-                        builder: (context, child) {
+                          fontSize:
+                              42,
 
 
-                          return Transform.scale(
+                          fontWeight:
+                              FontWeight.bold,
 
 
-                            scale: _pulseAnimation.value,
+                          letterSpacing:
+                              5,
 
 
-                            child: Text(
+                          shadows: [
+
+                            Shadow(
+
+                              color:
+                                  AppColors.primary,
 
 
-                              "ELOQIA",
-
-
-                              style: TextStyle(
-
-
-                                color: AppColors.primary,
-
-                                fontSize: 52,
-
-                                fontWeight: FontWeight.w900,
-
-                                letterSpacing: 10,
-
-
-                                shadows: [
-
-
-                                  Shadow(
-
-                                    color: AppColors.primary,
-
-                                    blurRadius: 25,
-
-                                  ),
-
-                                ],
-
-
-                              ),
-
+                              blurRadius:
+                                  25,
 
                             ),
 
-
-                          );
-
-
-                        },
-
-
-                      ),
-
-
-
-                      const SizedBox(height: 5),
-
-
-
-                      Text(
-
-
-                        "AI",
-
-
-                        style: TextStyle(
-
-
-                          color: AppColors.secondary,
-
-                          fontSize: 30,
-
-                          fontWeight: FontWeight.bold,
-
-                          letterSpacing: 14,
-
+                          ],
 
                         ),
 
-
                       ),
 
 
 
-
-                      const SizedBox(height: 30),
-
+                      const SizedBox(height: 14),
 
 
 
                       Text(
-
 
                         "Your AI language academy",
 
 
-                        style: TextStyle(
+                        style:
+                            TextStyle(
+
+                          color:
+                              Colors.white.withOpacity(0.75),
 
 
-                          color: AppColors.textSecondary,
-
-                          fontSize: 16,
-
-
-                        ),
+                          fontSize:
+                              16,
 
 
-                      ),
-
-
-
-
-                      const SizedBox(height: 50),
-
-
-
-
-                      SizedBox(
-
-
-                        width: 220,
-
-
-                        child: LinearProgressIndicator(
-
-
-                          minHeight: 5,
-
-
-                          backgroundColor: Colors.white12,
-
-
-                          color: AppColors.primary,
-
+                          letterSpacing:
+                              2,
 
                         ),
 
-
                       ),
-
-
-
-
-                      const SizedBox(height: 18),
-
-
-
-
-                      AnimatedSwitcher(
-
-
-                        duration: const Duration(milliseconds: 400),
-
-
-                        child: Text(
-
-
-                          _loadingMessages[_messageIndex],
-
-
-                          key: ValueKey(_messageIndex),
-
-
-                          style: TextStyle(
-
-
-                            color: AppColors.textSecondary,
-
-                            fontSize: 13,
-
-
-                          ),
-
-
-                        ),
-
-
-                      ),
-
-
 
                     ],
 
-
                   ),
-
 
                 ),
 
 
-              ),
-
+              ],
 
             ),
 
+          ),
 
-          ],
-
-
-        ),
-
+        ],
 
       ),
 
-
     );
 
-
   }
-
 
 }
