@@ -1,438 +1,866 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
-import '../home/home_screen.dart';
-
+import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
+  const SplashScreen({
+    super.key,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  late final AnimationController _masterController;
+  late final AnimationController _orbitalController;
+  late final AnimationController _pulseController;
+  late final AnimationController _particleController;
 
+  late final Animation<double> _logoFade;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoGlow;
+  late final Animation<double> _contentFade;
+  late final Animation<double> _contentSlide;
+  late final Animation<double> _ringFade;
+  late final Animation<double> _ringScale;
 
-  late AnimationController _controller;
-
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _glowAnimation;
-  late Animation<double> _textAnimation;
-
-
+  final List<_SplashParticle> _particles = [];
 
   @override
   void initState() {
-
     super.initState();
 
+    _createParticles();
 
-    _controller = AnimationController(
+    _masterController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
-    );
-
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
-
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.7,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.elasticOut,
+      duration: const Duration(
+        milliseconds: 3600,
       ),
     );
 
+    _orbitalController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        seconds: 14,
+      ),
+    )..repeat();
 
-    _glowAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        milliseconds: 2400,
+      ),
+    )..repeat(reverse: true);
+
+    _particleController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        seconds: 12,
+      ),
+    )..repeat();
+
+    _logoFade = CurvedAnimation(
+      parent: _masterController,
+      curve: const Interval(
+        0.0,
+        0.34,
+        curve: Curves.easeOutCubic,
       ),
     );
 
-
-    _textAnimation = Tween<double>(
-      begin: 0.0,
+    _logoScale = Tween<double>(
+      begin: 0.72,
       end: 1.0,
     ).animate(
       CurvedAnimation(
-        parent: _controller,
+        parent: _masterController,
         curve: const Interval(
-          0.45,
-          1.0,
-          curve: Curves.easeOut,
+          0.0,
+          0.48,
+          curve: Curves.easeOutBack,
         ),
       ),
     );
 
-
-    _controller.forward();
-
-
-
-    Future.delayed(
-      const Duration(seconds: 4),
-      () {
-
-        if (!mounted) return;
-
-
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            transitionDuration:
-                const Duration(milliseconds: 900),
-
-            pageBuilder:
-                (_, animation, secondaryAnimation) =>
-                    const HomeScreen(),
-
-            transitionsBuilder:
-                (_, animation, secondaryAnimation, child) {
-
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-
-            },
-
-          ),
-        );
-
-      },
-
+    _logoGlow = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _masterController,
+        curve: const Interval(
+          0.08,
+          0.62,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
     );
 
+    _ringFade = CurvedAnimation(
+      parent: _masterController,
+      curve: const Interval(
+        0.08,
+        0.55,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _ringScale = Tween<double>(
+      begin: 0.72,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _masterController,
+        curve: const Interval(
+          0.08,
+          0.68,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
+    );
+
+    _contentFade = CurvedAnimation(
+      parent: _masterController,
+      curve: const Interval(
+        0.42,
+        0.82,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _contentSlide = Tween<double>(
+      begin: 24,
+      end: 0,
+    ).animate(
+      CurvedAnimation(
+        parent: _masterController,
+        curve: const Interval(
+          0.42,
+          0.86,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
+    );
+
+    _masterController.forward();
+
+    Future.delayed(
+      const Duration(
+        milliseconds: 5200,
+      ),
+      _openOnboarding,
+    );
   }
 
+  void _createParticles() {
+    final random = math.Random(42);
 
+    for (int i = 0; i < 38; i++) {
+      _particles.add(
+        _SplashParticle(
+          x: random.nextDouble(),
+          y: random.nextDouble(),
+          radius: 0.7 + random.nextDouble() * 2.0,
+          opacity: 0.12 + random.nextDouble() * 0.42,
+          speed: 0.25 + random.nextDouble() * 0.75,
+          phase: random.nextDouble() * math.pi * 2,
+        ),
+      );
+    }
+  }
+
+  void _openOnboarding() {
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(
+          milliseconds: 1100,
+        ),
+        reverseTransitionDuration: const Duration(
+          milliseconds: 700,
+        ),
+        pageBuilder: (
+          context,
+          animation,
+          secondaryAnimation,
+        ) {
+          return const OnboardingScreen();
+        },
+        transitionsBuilder: (
+          context,
+          animation,
+          secondaryAnimation,
+          child,
+        ) {
+          final curvedAnimation = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: curvedAnimation,
+            child: ScaleTransition(
+              scale: Tween<double>(
+                begin: 1.035,
+                end: 1.0,
+              ).animate(curvedAnimation),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   void dispose() {
-
-    _controller.dispose();
+    _masterController.dispose();
+    _orbitalController.dispose();
+    _pulseController.dispose();
+    _particleController.dispose();
 
     super.dispose();
-
   }
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
-
-
     return Scaffold(
-
-      backgroundColor:
-          AppColors.background,
-
-
-      body: Stack(
-
-        alignment:
-            Alignment.center,
-
-
-        children: [
-
-
-
-          // Halo lumineux IA
-
-          AnimatedBuilder(
-
-            animation:
-                _glowAnimation,
-
-
-            builder:
-                (context, child) {
-
-
-              return Container(
-
-                width:
-                    420 * _glowAnimation.value,
-
-
-                height:
-                    420 * _glowAnimation.value,
-
-
-                decoration:
-                    BoxDecoration(
-
-                  shape:
-                      BoxShape.circle,
-
-
-                  gradient:
-                      RadialGradient(
-
-                    colors: [
-
-                      AppColors.primary.withOpacity(
-                        0.35 *
-                            _glowAnimation.value,
-                      ),
-
-
-                      AppColors.secondary.withOpacity(
-                        0.20 *
-                            _glowAnimation.value,
-                      ),
-
-
-                      Colors.transparent,
-
-                    ],
-
-                  ),
-
-                ),
-
-              );
-
-
-            },
-
-          ),
-
-
-
-
-          // Contenu principal centré
-
-          Center(
-
-            child: Column(
-
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-
-
-              crossAxisAlignment:
-                  CrossAxisAlignment.center,
-
-
-              children: [
-
-
-
-                // Logo Eloqia AI
-
-                FadeTransition(
-
-                  opacity:
-                      _fadeAnimation,
-
-
-                  child: ScaleTransition(
-
-                    scale:
-                        _scaleAnimation,
-
-
-                    child: Container(
-
-                      width:
-                          330,
-
-
-                      height:
-                          330,
-
-
-                      alignment:
-                          Alignment.center,
-
-
-                      decoration:
-                          BoxDecoration(
-
-                        shape:
-                            BoxShape.circle,
-
-
-                        boxShadow: [
-
-                          BoxShadow(
-
-                            color:
-                                AppColors.primary.withOpacity(0.55),
-
-
-                            blurRadius:
-                                90,
-
-
-                            spreadRadius:
-                                20,
-
-                          ),
-
-                        ],
-
-                      ),
-
-
-
-                      child: Image.asset(
-
-                        "assets/branding/logo/logo_concept_v1.png",
-
-
-                        width:
-                            300,
-
-
-                        height:
-                            300,
-
-
-                        fit:
-                            BoxFit.contain,
-
-                      ),
-
-                    ),
-
-                  ),
-
-                ),
-
-
-
-
-                const SizedBox(height: 45),
-
-
-
-
-                // Texte
-
-                FadeTransition(
-
-                  opacity:
-                      _textAnimation,
-
-
-                  child: Column(
-
-                    children: [
-
-
-
-                      Text(
-
-                        "ELOQIA AI",
-
-
-                        style:
-                            TextStyle(
-
-                          color:
-                              Colors.white,
-
-
-                          fontSize:
-                              42,
-
-
-                          fontWeight:
-                              FontWeight.bold,
-
-
-                          letterSpacing:
-                              5,
-
-
-                          shadows: [
-
-                            Shadow(
-
-                              color:
-                                  AppColors.primary,
-
-
-                              blurRadius:
-                                  25,
-
-                            ),
-
-                          ],
-
-                        ),
-
-                      ),
-
-
-
-                      const SizedBox(height: 14),
-
-
-
-                      Text(
-
-                        "Your AI language academy",
-
-
-                        style:
-                            TextStyle(
-
-                          color:
-                              Colors.white.withOpacity(0.75),
-
-
-                          fontSize:
-                              16,
-
-
-                          letterSpacing:
-                              2,
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-
-              ],
-
-            ),
-
-          ),
-
-        ],
-
+      backgroundColor: AppColors.background,
+      body: LayoutBuilder(
+        builder: (
+          context,
+          constraints,
+        ) {
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+
+          final bool isDesktop = width >= 900;
+          final double logoSize = isDesktop
+              ? math.min(width * 0.42, 390)
+              : math.min(width * 0.72, 330);
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildBackground(
+                width,
+                height,
+              ),
+              _buildParticles(),
+              _buildAmbientGlow(
+                width,
+                height,
+              ),
+              _buildOrbitalSystem(
+                logoSize,
+              ),
+              _buildMainContent(
+                logoSize,
+              ),
+            ],
+          );
+        },
       ),
-
     );
-
   }
 
+  Widget _buildBackground(
+    double width,
+    double height,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(
+            0,
+            -0.12,
+          ),
+          radius: 1.15,
+          colors: [
+            AppColors.primary.withValues(
+              alpha: 0.075,
+            ),
+            AppColors.background,
+            Colors.black.withValues(
+              alpha: 0.22,
+            ),
+          ],
+          stops: const [
+            0.0,
+            0.58,
+            1.0,
+          ],
+        ),
+      ),
+      child: CustomPaint(
+        painter: _BackgroundGridPainter(),
+      ),
+    );
+  }
+
+  Widget _buildParticles() {
+    return AnimatedBuilder(
+      animation: _particleController,
+      builder: (
+        context,
+        child,
+      ) {
+        return CustomPaint(
+          painter: _ParticlePainter(
+            particles: _particles,
+            progress: _particleController.value,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAmbientGlow(
+    double width,
+    double height,
+  ) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        _pulseController,
+        _masterController,
+      ]),
+      builder: (
+        context,
+        child,
+      ) {
+        final pulse =
+            0.88 + (_pulseController.value * 0.12);
+
+        final glow =
+            _logoGlow.value * pulse;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: width * 0.62 * pulse,
+              height: width * 0.62 * pulse,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withValues(
+                      alpha: 0.12 * glow,
+                    ),
+                    AppColors.secondary.withValues(
+                      alpha: 0.055 * glow,
+                    ),
+                    Colors.transparent,
+                  ],
+                  stops: const [
+                    0.0,
+                    0.42,
+                    1.0,
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              width: width * 0.38 * pulse,
+              height: width * 0.38 * pulse,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(
+                      alpha: 0.16 * glow,
+                    ),
+                    blurRadius: 110,
+                    spreadRadius: 30,
+                  ),
+                  BoxShadow(
+                    color: AppColors.secondary.withValues(
+                      alpha: 0.08 * glow,
+                    ),
+                    blurRadius: 160,
+                    spreadRadius: 50,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildOrbitalSystem(
+    double logoSize,
+  ) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        _orbitalController,
+        _ringFade,
+        _ringScale,
+      ]),
+      builder: (
+        context,
+        child,
+      ) {
+        final double baseSize =
+            logoSize * 1.22 * _ringScale.value;
+
+        return Center(
+          child: Opacity(
+            opacity: _ringFade.value,
+            child: Transform.rotate(
+              angle: _orbitalController.value *
+                  math.pi *
+                  2,
+              child: SizedBox(
+                width: baseSize,
+                height: baseSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    _buildRing(
+                      size: baseSize,
+                      opacity: 0.16,
+                      strokeWidth: 1.0,
+                    ),
+                    _buildRing(
+                      size: baseSize * 0.86,
+                      opacity: 0.10,
+                      strokeWidth: 1.0,
+                    ),
+                    Transform.rotate(
+                      angle: math.pi / 2,
+                      child: _buildRing(
+                        size: baseSize * 0.70,
+                        opacity: 0.08,
+                        strokeWidth: 1.0,
+                      ),
+                    ),
+                    _buildOrbitalDot(
+                      size: baseSize,
+                      angle: _orbitalController.value *
+                          math.pi *
+                          2,
+                    ),
+                    _buildOrbitalDot(
+                      size: baseSize * 0.86,
+                      angle:
+                          -_orbitalController.value *
+                              math.pi *
+                              4 +
+                          1.4,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRing({
+    required double size,
+    required double opacity,
+    required double strokeWidth,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(
+            alpha: opacity,
+          ),
+          width: strokeWidth,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrbitalDot({
+    required double size,
+    required double angle,
+  }) {
+    final radius = size / 2;
+
+    return Transform.translate(
+      offset: Offset(
+        math.cos(angle) * radius,
+        math.sin(angle) * radius,
+      ),
+      child: Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.primary,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(
+                alpha: 0.8,
+              ),
+              blurRadius: 14,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent(
+    double logoSize,
+  ) {
+    return Center(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([
+          _masterController,
+          _pulseController,
+        ]),
+        builder: (
+          context,
+          child,
+        ) {
+          final pulse =
+              1.0 +
+              math.sin(
+                    _pulseController.value *
+                        math.pi *
+                        2,
+                  ) *
+                  0.018;
+
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FadeTransition(
+                opacity: _logoFade,
+                child: Transform.scale(
+                  scale: _logoScale.value * pulse,
+                  child: _buildLogo(
+                    logoSize,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 38),
+              FadeTransition(
+                opacity: _contentFade,
+                child: Transform.translate(
+                  offset: Offset(
+                    0,
+                    _contentSlide.value,
+                  ),
+                  child: _buildBranding(),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLogo(
+    double size,
+  ) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: size * 0.78,
+          height: size * 0.78,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: 0.32 * _logoGlow.value,
+                ),
+                blurRadius: 90,
+                spreadRadius: 12,
+              ),
+              BoxShadow(
+                color: AppColors.secondary.withValues(
+                  alpha: 0.18 * _logoGlow.value,
+                ),
+                blurRadius: 130,
+                spreadRadius: 20,
+              ),
+            ],
+          ),
+        ),
+        Container(
+          width: size * 0.76,
+          height: size * 0.76,
+          padding: EdgeInsets.all(
+            size * 0.025,
+          ),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(
+                  alpha: 0.075,
+                ),
+                Colors.white.withValues(
+                  alpha: 0.018,
+                ),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(
+                alpha: 0.11,
+              ),
+              width: 1.2,
+            ),
+          ),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/branding/logo/logo_concept_v1.png',
+              width: size * 0.70,
+              height: size * 0.70,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBranding() {
+    return Column(
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Colors.white.withValues(
+                  alpha: 0.88,
+                ),
+                Colors.white,
+                AppColors.primary,
+              ],
+            ).createShader(bounds);
+          },
+          child: const Text(
+            'ELOQIA AI',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 39,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 7,
+              height: 1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 28,
+              height: 1,
+              color: AppColors.primary.withValues(
+                alpha: 0.45,
+              ),
+            ),
+            const SizedBox(width: 13),
+            Text(
+              'YOUR AI LANGUAGE ACADEMY',
+              style: TextStyle(
+                color: Colors.white.withValues(
+                  alpha: 0.48,
+                ),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2.5,
+              ),
+            ),
+            const SizedBox(width: 13),
+            Container(
+              width: 28,
+              height: 1,
+              color: AppColors.primary.withValues(
+                alpha: 0.45,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildLoadingIndicator(),
+      ],
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return AnimatedBuilder(
+      animation: _masterController,
+      builder: (
+        context,
+        child,
+      ) {
+        return SizedBox(
+          width: 120,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: LinearProgressIndicator(
+              value: _masterController.value,
+              minHeight: 2,
+              backgroundColor: Colors.white.withValues(
+                alpha: 0.06,
+              ),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(
+                AppColors.primary.withValues(
+                  alpha: 0.85,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SplashParticle {
+  final double x;
+  final double y;
+  final double radius;
+  final double opacity;
+  final double speed;
+  final double phase;
+
+  const _SplashParticle({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.opacity,
+    required this.speed,
+    required this.phase,
+  });
+}
+
+class _ParticlePainter extends CustomPainter {
+  final List<_SplashParticle> particles;
+  final double progress;
+
+  const _ParticlePainter({
+    required this.particles,
+    required this.progress,
+  });
+
+  @override
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
+    for (final particle in particles) {
+      final double drift =
+          math.sin(
+                progress *
+                    math.pi *
+                    2 *
+                    particle.speed +
+                    particle.phase,
+              ) *
+              10;
+
+      final double vertical =
+          (progress * 32 * particle.speed) % size.height;
+
+      final double x =
+          particle.x * size.width + drift;
+
+      final double y =
+          (particle.y * size.height + vertical) %
+              size.height;
+
+      final Paint paint = Paint()
+        ..color = Colors.white.withValues(
+          alpha: particle.opacity,
+        )
+        ..maskFilter = const MaskFilter.blur(
+          BlurStyle.normal,
+          2,
+        );
+
+      canvas.drawCircle(
+        Offset(x, y),
+        particle.radius,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(
+    covariant _ParticlePainter oldDelegate,
+  ) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _BackgroundGridPainter extends CustomPainter {
+  @override
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(
+        alpha: 0.012,
+      )
+      ..strokeWidth = 0.5;
+
+    const double spacing = 72;
+
+    for (
+      double x = 0;
+      x <= size.width;
+      x += spacing
+    ) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        paint,
+      );
+    }
+
+    for (
+      double y = 0;
+      y <= size.height;
+      y += spacing
+    ) {
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(
+    covariant CustomPainter oldDelegate,
+  ) {
+    return false;
+  }
 }

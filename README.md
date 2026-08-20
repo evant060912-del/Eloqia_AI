@@ -573,4 +573,142 @@ Future versions will introduce:
 * Personalized AI learning analytics
 * Complete AI language academy features
 
+## v0.4.0 — Personalized AI Onboarding
 
+**Status:** Completed ✅
+
+Focus:
+
+* Creating a complete personalized onboarding experience
+
+* Understanding the learner's goals, strengths, difficulties and preferences
+
+* Building the foundation for Eloqia's future AI personalization system
+
+* Introducing a premium Liquid Glass onboarding experience
+
+### Added
+
+* Complete 15-step personalized onboarding
+
+* Personalized learner profile powered by `LearningProfile`
+
+* Name and personal identity setup
+
+* Primary and secondary learning goals
+
+* Strengths and difficulties assessment
+
+* English confidence assessment
+
+* Real-life speaking situations
+
+* Learning preferences
+
+* Preferred correction style
+
+* Personal motivation
+
+* Learning pace selection
+
+* Personal interests
+
+* Preferred AI tutor personality
+
+* Self-assessed English level from A1 to C2
+
+* Animated onboarding progress system
+
+* Personalized onboarding completion experience
+
+* Personalized welcome message
+
+* Premium AI completion animation
+
+### Improved
+
+* More immersive Liquid Glass interface
+
+* Premium glass cards and selection components
+
+* Smooth animated transitions between questions
+
+* Dynamic ambient AI background effects
+
+* Improved responsive layouts
+
+* Enhanced selection animations and feedback
+
+* More polished typography and spacing
+
+* Better navigation experience
+
+* Stronger foundation for future AI personalization
+
+### Architecture
+
+* `LearningProfile` established as the single source of truth for onboarding data
+
+* Reusable onboarding components
+
+* Reusable single-choice and multi-choice systems
+
+* Dedicated onboarding background system
+
+* Dedicated progress and navigation components
+
+* Personalized profile preserved throughout the onboarding experience
+
+### Documentation
+
+* Added v0.4.0 onboarding documentation
+
+* Updated project evolution tracking
+
+* Updated development milestones
+
+* Prepared roadmap for future AI learning features
+
+---
+
+## Future Versions
+
+Future versions will introduce:
+
+* Personalized daily AI learning sessions
+
+* AI-generated daily objectives
+
+* AI tutor memory across learning sessions
+
+* Personalized lessons based on learner history
+
+* Writing exercises and challenges
+
+* Conversation-based learning
+
+* Reading and listening activities
+
+* Vocabulary and grammar training
+
+* Adaptive difficulty
+
+* AI-generated corrections and feedback
+
+* End-of-lesson personalized feedback
+
+* Specialized interfaces for each learning category
+
+* Voice conversations with AI tutors
+
+* Personalized learning progression
+
+* Advanced XP and achievement systems
+
+* Premium learning experiences
+
+* Free and Premium learning plans
+
+* Multiple AI tutors with distinct personalities and voices
+
+* Complete adaptive AI language academy 

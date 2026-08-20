@@ -221,3 +221,106 @@ During this version, I learned:
 * How to improve an interface through iterative design
 * How real software products evolve through continuous refinement
 
+# [v0.4.0] — 20 August 2026
+
+## 🧠 Personalized AI Onboarding
+
+The fourth milestone of Eloqia AI was completed.
+
+This version focuses on creating a personalized onboarding experience and preparing the foundation for future AI-powered learning.
+
+---
+
+## ✨ Added
+
+### Personalized Onboarding
+
+* Added complete 15-step onboarding experience
+
+* Added personalized learner profile using `LearningProfile`
+
+* Added goals, strengths and difficulties questions
+
+* Added confidence and English level assessment
+
+* Added learning preferences and pace selection
+
+* Added interests and speaking situations
+
+* Added motivation and tutor personality preferences
+
+* Added personalized onboarding completion experience
+
+---
+
+### 🌌 Premium Liquid Glass Experience
+
+* Added premium Liquid Glass cards
+
+* Added animated selection states
+
+* Added ambient AI background effects
+
+* Added smooth page transitions
+
+* Added animated progress indicators
+
+* Added premium completion animation
+
+---
+
+## 🔧 Improved
+
+* Improved onboarding responsiveness
+
+* Improved Flutter UI structure
+
+* Improved navigation and animations
+
+* Improved visual consistency
+
+* Improved selection feedback
+
+* Improved futuristic dark theme
+
+* Established `LearningProfile` as the single source of truth
+
+* Prepared the foundation for future AI personalization
+
+---
+
+## 📚 What I Learned
+
+During this version, I learned:
+
+* How to build a complete multi-step onboarding experience
+
+* How to manage complex user selections in Flutter
+
+* How to create reusable and responsive UI components
+
+* How to create more advanced Liquid Glass interfaces
+
+* How to design the foundation of a personalized AI experience
+
+---
+
+## 🚀 Next Version
+
+### v0.5.0 — First Real AI Learning Experience
+
+Future development will introduce:
+
+* Personalized daily AI objectives
+
+* AI-generated lessons
+
+* Writing exercises and challenges
+
+* Conversations, reading and listening
+
+* Personalized feedback
+
+* AI tutor memory
+
+* Adaptive learning
