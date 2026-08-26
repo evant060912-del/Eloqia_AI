@@ -712,3 +712,125 @@ Future versions will introduce:
 * Multiple AI tutors with distinct personalities and voices
 
 * Complete adaptive AI language academy 
+
+## v0.5.0 — Personalized Learning Experience
+
+**Status:** Completed ✅
+
+Focus:
+
+* Transforming Eloqia into a persistent learning application
+
+* Connecting the personalized learner profile to the main experience
+
+* Introducing persistent learning progression
+
+* Creating the foundation of the Learning Hub
+
+* Preparing Mia for a deeper personalized tutor experience
+
+### Added
+
+* Persistent learner profile
+
+* Persistent XP, level and streak system
+
+* Daily learning goals
+
+* Learning statistics and skill progression
+
+* Personalized HomeScreen
+
+* Dynamic learner greeting and statistics
+
+* Daily Intelligence section
+
+* English Evolution progression system
+
+* Learning Hub foundation
+
+* Conversation, Vocabulary, Grammar, Listening, Writing and Academic learning categories
+
+* Mia tutor experience foundation
+
+* Mia personalization system
+
+* Personalized Mia welcome experience
+
+* Progression snapshot system
+
+### Improved
+
+* Premium Liquid Glass Home experience
+
+* Ambient lighting and dynamic gradients
+
+* Glass cards, borders and depth effects
+
+* Smooth animations and transitions
+
+* Improved visual hierarchy
+
+* Enhanced responsive layouts
+
+* More immersive learner experience
+
+* Stronger connection between profile, progression and learning
+
+### Architecture
+
+* LearningProfile remains the single source of truth
+
+* Dedicated profile persistence architecture
+
+* Dedicated progression persistence architecture
+
+* Reusable Learning Hub components
+
+* Dedicated Mia experience architecture
+
+* Modular progression system prepared for future analytics
+
+* Storage architecture prepared for future cloud synchronization
+
+### Documentation
+
+* Updated persistence architecture
+
+* Updated Learning Hub architecture
+
+* Updated progression system
+
+* Updated Mia architecture
+
+* Prepared roadmap for future AI learning experiences
+
+---
+
+## Future Versions
+
+Future versions will introduce:
+
+* Mia becoming fully interactive and adaptive
+
+* Complete application navigation
+
+* Writing, vocabulary, grammar and pronunciation experiences
+
+* Listening and speaking activities
+
+* Advanced learning statistics
+
+* Personalized recommendations
+
+* AI-generated lessons
+
+* Voice conversations with Mia
+
+* Advanced AI memory
+
+* Premium subscription system
+
+* Multiple AI tutors
+
+* Complete adaptive AI language academy 🚀

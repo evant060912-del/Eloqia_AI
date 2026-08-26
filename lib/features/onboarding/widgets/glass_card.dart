@@ -12,9 +12,7 @@ class GlassCard extends StatefulWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(24),
-    this.borderRadius = const BorderRadius.all(
-      Radius.circular(28),
-    ),
+    this.borderRadius = const BorderRadius.all(Radius.circular(28)),
     this.onTap,
   });
 
@@ -25,78 +23,68 @@ class GlassCard extends StatefulWidget {
 class _GlassCardState extends State<GlassCard> {
   bool _isPressed = false;
 
+  void _setPressed(bool value) {
+    if (!mounted || widget.onTap == null) {
+      return;
+    }
+
+    setState(() {
+      _isPressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final card = GestureDetector(
+    final bool interactive = widget.onTap != null;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      onTapDown: widget.onTap == null
-          ? null
-          : (_) {
-              setState(() {
-                _isPressed = true;
-              });
-            },
-      onTapUp: widget.onTap == null
-          ? null
-          : (_) {
-              setState(() {
-                _isPressed = false;
-              });
-            },
-      onTapCancel: widget.onTap == null
-          ? null
-          : () {
-              setState(() {
-                _isPressed = false;
-              });
-            },
+      onTapDown: interactive ? (_) => _setPressed(true) : null,
+      onTapUp: interactive ? (_) => _setPressed(false) : null,
+      onTapCancel: interactive ? () => _setPressed(false) : null,
       child: AnimatedScale(
-        scale: _isPressed ? 0.985 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
+        scale: _isPressed ? 0.985 : 1,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
         child: ClipRRect(
           borderRadius: widget.borderRadius,
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 24,
-              sigmaY: 24,
-            ),
-            child: Container(
-              padding: widget.padding,
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: widget.borderRadius,
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withOpacity(0.095),
-                    Colors.white.withOpacity(0.035),
+                    Colors.white.withValues(alpha: 0.095),
+                    Colors.white.withValues(alpha: 0.035),
+                    Colors.white.withValues(alpha: 0.018),
                   ],
                 ),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.115),
+                  color: Colors.white.withValues(alpha: 0.105),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.24),
-                    blurRadius: 40,
-                    offset: const Offset(0, 20),
+                    color: Colors.black.withValues(alpha: 0.28),
+                    blurRadius: 42,
+                    offset: const Offset(0, 22),
                   ),
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.025),
-                    blurRadius: 1,
+                    color: Colors.white.withValues(alpha: 0.018),
+                    blurRadius: 2,
                     spreadRadius: 1,
                   ),
                 ],
               ),
-              child: widget.child,
+              child: Padding(padding: widget.padding, child: widget.child),
             ),
           ),
         ),
       ),
     );
-
-    return card;
   }
 }

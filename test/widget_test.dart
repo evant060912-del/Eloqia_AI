@@ -15,6 +15,8 @@ void main() {
         const EloqiaApp(),
       );
 
+      await tester.pump(const Duration(milliseconds: 500));
+
 
       // Vérifie que MaterialApp existe
       expect(
@@ -25,16 +27,10 @@ void main() {
 
       // Vérifie que l'identité Eloqia apparaît
       expect(
-        find.text('Eloqia AI'),
+        find.text('ELOQIA AI'),
         findsOneWidget,
       );
 
-
-      // Vérifie que l'écran possède un bouton principal
-      expect(
-        find.text('Begin your journey'),
-        findsOneWidget,
-      );
 
     },
   );

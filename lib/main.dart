@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'app/persistent_app_controller.dart';
 import 'features/splash/splash_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final PersistentAppController appController =
+      PersistentAppController.instance;
+
+  await appController.restore();
 
   runApp(
     const EloqiaApp(),

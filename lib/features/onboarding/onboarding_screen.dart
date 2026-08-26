@@ -1,20 +1,18 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../app/persistent_app_controller.dart';
 import '../../models/learning_profile.dart';
 import '../../theme/app_colors.dart';
 import '../home/home_screen.dart';
-import 'widgets/glass_card.dart';
 import 'widgets/onboarding_background.dart';
 import 'widgets/onboarding_button.dart';
 import 'widgets/progress_indicator.dart';
 
-
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({
-    super.key,
-  });
+  const OnboardingScreen({super.key});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -26,9 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // PROFILE
   // ===========================================================================
 
-  /// Single source of truth for the entire onboarding.
-  ///
-  /// Every answer collected throughout the experience is stored here.
+  /// Single source of truth for the complete onboarding experience.
   final LearningProfile _profile = LearningProfile();
 
   // ===========================================================================
@@ -43,9 +39,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   late final AnimationController _contentController;
   late final AnimationController _ambientController;
+  late final AnimationController _pulseController;
 
   late final Animation<double> _fadeAnimation;
-  
 
   // ===========================================================================
   // STATE
@@ -71,20 +67,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     _contentController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 720),
     );
 
     _ambientController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 9),
+      duration: const Duration(seconds: 14),
     )..repeat();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
 
     _fadeAnimation = CurvedAnimation(
       parent: _contentController,
       curve: Curves.easeOutCubic,
     );
 
-  
     _contentController.forward();
   }
 
@@ -93,6 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _pageController.dispose();
     _contentController.dispose();
     _ambientController.dispose();
+    _pulseController.dispose();
 
     super.dispose();
   }
@@ -164,7 +165,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     FocusScope.of(context).unfocus();
 
-    // Final page.
     if (_currentPage == _totalPages - 1) {
       _finishOnboarding();
       return;
@@ -176,7 +176,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     await _pageController.nextPage(
       duration: const Duration(milliseconds: 650),
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeInOutCubic,
     );
 
     if (!mounted) {
@@ -205,7 +205,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     await _pageController.previousPage(
       duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeInOutCubic,
     );
 
     if (!mounted) {
@@ -235,10 +235,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // SELECTION
   // ===========================================================================
 
-  void _toggleSelection(
-    List<String> list,
-    String value,
-  ) {
+  void _toggleSelection(List<String> list, String value) {
     setState(() {
       if (list.contains(value)) {
         list.remove(value);
@@ -252,29 +249,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // FINISH
   // ===========================================================================
 
-  void _finishOnboarding() {
+  Future<void> _finishOnboarding() async {
     if (!_canContinue || _isTransitioning) {
       return;
     }
 
     FocusScope.of(context).unfocus();
 
+    final bool completed =
+        await PersistentAppController.instance.completeOnboarding();
+
+    if (!mounted || !completed) {
+      return;
+    }
+
     Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(
-          milliseconds: 1100,
-        ),
-        reverseTransitionDuration: const Duration(
-          milliseconds: 700,
-        ),
-        pageBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-        ) {
-          return _OnboardingCompletionScreen(
-            profile: _profile,
-          );
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 1100),
+        reverseTransitionDuration: const Duration(milliseconds: 700),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _OnboardingCompletionScreen(profile: _profile);
         },
         transitionsBuilder: (
           context,
@@ -282,8 +276,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           secondaryAnimation,
           child,
         ) {
-          final Animation<double> curvedAnimation =
-              CurvedAnimation(
+          final Animation<double> curvedAnimation = CurvedAnimation(
             parent: animation,
             curve: Curves.easeInOutCubic,
           );
@@ -292,7 +285,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             opacity: curvedAnimation,
             child: ScaleTransition(
               scale: Tween<double>(
-                begin: 1.045,
+                begin: 1.035,
                 end: 1.0,
               ).animate(curvedAnimation),
               child: child,
@@ -313,75 +306,68 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundColor: AppColors.background,
       body: OnboardingBackground(
         child: Stack(
+          fit: StackFit.expand,
           children: [
             _buildAmbientGlow(),
+            _buildSecondaryGlow(),
+            _buildAtmosphericLight(),
+            _buildEdgeVignette(),
+            _buildTopLightBeam(),
 
             SafeArea(
               child: LayoutBuilder(
-                builder: (
-                  context,
-                  constraints,
-                ) {
-                  final bool compact =
-                      constraints.maxHeight < 720;
+                builder: (context, constraints) {
+                  final bool compact = constraints.maxHeight < 720;
+                  final bool veryCompact = constraints.maxHeight < 620;
+                  final bool wide = constraints.maxWidth >= 900;
 
-                  final bool wide =
-                      constraints.maxWidth >= 900;
+                  final double horizontalPadding = wide
+                      ? 34
+                      : constraints.maxWidth < 380
+                      ? 14
+                      : 18;
+
+                  final double verticalPadding = veryCompact
+                      ? 6
+                      : compact
+                      ? 10
+                      : 18;
 
                   return Center(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: wide ? 1100 : 760,
+                        maxWidth: wide ? 1180 : 820,
                       ),
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: wide ? 42 : 20,
-                          vertical: compact ? 12 : 22,
+                          horizontal: horizontalPadding,
+                          vertical: verticalPadding,
                         ),
                         child: Column(
                           children: [
-                            _buildTopBar(
-                              compact: compact,
-                            ),
+                            _buildTopBar(compact: compact),
 
                             SizedBox(
-                              height: compact ? 12 : 22,
+                              height: veryCompact
+                                  ? 6
+                                  : compact
+                                  ? 10
+                                  : 18,
                             ),
 
                             Expanded(
-                              child: PageView(
-                                controller: _pageController,
-                                physics:
-                                    const NeverScrollableScrollPhysics(),
-                                onPageChanged:
-                                    _onPageChanged,
-                                children: [
-                                  _buildWelcomePage(),
-                                  _buildNamePage(),
-                                  _buildPrimaryGoalPage(),
-                                  _buildSecondaryGoalsPage(),
-                                  _buildDifficultiesPage(),
-                                  _buildStrengthsPage(),
-                                  _buildConfidencePage(),
-                                  _buildSpeakingPage(),
-                                  _buildLearningStylePage(),
-                                  _buildCorrectionPage(),
-                                  _buildMotivationPage(),
-                                  _buildPacePage(),
-                                  _buildInterestsPage(),
-                                  _buildTutorStylePage(),
-                                  _buildLevelPage(),
-                                ],
-                              ),
+                              child: _buildPageViewport(),
                             ),
 
                             SizedBox(
-                              height: compact ? 10 : 18,
+                              height: veryCompact
+                                  ? 5
+                                  : compact
+                                  ? 8
+                                  : 14,
                             ),
 
-                            _buildBottomControls(
-                              compact: compact,
-                            ),
+                            _buildBottomControls(compact: compact),
                           ],
                         ),
                       ),
@@ -397,45 +383,78 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   // ===========================================================================
+  // PAGE VIEWPORT
+  // ===========================================================================
+
+  Widget _buildPageViewport() {
+    return PageView(
+      controller: _pageController,
+      physics: const NeverScrollableScrollPhysics(),
+      onPageChanged: _onPageChanged,
+      children: [
+        _buildWelcomePage(),
+        _buildNamePage(),
+        _buildPrimaryGoalPage(),
+        _buildSecondaryGoalsPage(),
+        _buildDifficultiesPage(),
+        _buildStrengthsPage(),
+        _buildConfidencePage(),
+        _buildSpeakingPage(),
+        _buildLearningStylePage(),
+        _buildCorrectionPage(),
+        _buildMotivationPage(),
+        _buildPacePage(),
+        _buildInterestsPage(),
+        _buildTutorStylePage(),
+        _buildLevelPage(),
+      ],
+    );
+  }
+
+  // ===========================================================================
   // AMBIENT ATMOSPHERE
   // ===========================================================================
 
   Widget _buildAmbientGlow() {
     return AnimatedBuilder(
       animation: _ambientController,
-      builder: (
-        context,
-        child,
-      ) {
-        final double value =
-            _ambientController.value;
+      builder: (context, child) {
+        final double rotation = _ambientController.value * math.pi * 2;
+
+        final double horizontalShift =
+            math.sin(rotation * 0.72) * 52.0;
+
+        final double verticalShift =
+            math.cos(rotation * 0.48) * 34.0;
 
         final double pulse =
-            0.94 + (0.06 * (1 - (value * 2 - 1).abs()));
-
-        final double rotation =
-            value * 0.08;
+            0.96 + (math.sin(rotation) + 1.0) * 0.018;
 
         return IgnorePointer(
           child: Center(
-            child: Transform.rotate(
-              angle: rotation,
+            child: Transform.translate(
+              offset: Offset(horizontalShift, verticalShift),
               child: Transform.scale(
                 scale: pulse,
                 child: Container(
-                  width: 560,
-                  height: 560,
+                  width: 720,
+                  height: 720,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
+                      center: const Alignment(-0.18, -0.20),
+                      radius: 0.72,
                       colors: [
-                        AppColors.primary.withValues(
-                          alpha: 0.075,
-                        ),
-                        AppColors.secondary.withValues(
-                          alpha: 0.030,
-                        ),
+                        AppColors.primary.withValues(alpha: 0.095),
+                        AppColors.secondary.withValues(alpha: 0.045),
+                        AppColors.primary.withValues(alpha: 0.014),
                         Colors.transparent,
+                      ],
+                      stops: const [
+                        0.0,
+                        0.32,
+                        0.62,
+                        1.0,
                       ],
                     ),
                   ),
@@ -448,105 +467,346 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
+  Widget _buildSecondaryGlow() {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final double value = Curves.easeInOut.transform(
+          _pulseController.value,
+        );
+
+        return IgnorePointer(
+          child: Align(
+            alignment: Alignment.bottomLeft,
+            child: Transform.translate(
+              offset: Offset(
+                18.0 * value,
+                -20.0 * value,
+              ),
+              child: Container(
+                width: 460,
+                height: 460,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.secondary.withValues(
+                        alpha: 0.035 + (value * 0.018),
+                      ),
+                      AppColors.primary.withValues(
+                        alpha: 0.012,
+                      ),
+                      Colors.transparent,
+                    ],
+                    stops: const [
+                      0.0,
+                      0.48,
+                      1.0,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAtmosphericLight() {
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: const Alignment(0.92, -0.78),
+            child: Container(
+              width: 430,
+              height: 430,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.secondary.withValues(alpha: 0.052),
+                    AppColors.secondary.withValues(alpha: 0.015),
+                    Colors.transparent,
+                  ],
+                  stops: const [
+                    0.0,
+                    0.42,
+                    1.0,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: const Alignment(-0.90, 0.82),
+            child: Container(
+              width: 340,
+              height: 340,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.032),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopLightBeam() {
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          height: 1,
+          margin: const EdgeInsets.symmetric(horizontal: 80),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.transparent,
+                AppColors.primary.withValues(alpha: 0.18),
+                Colors.white.withValues(alpha: 0.12),
+                AppColors.secondary.withValues(alpha: 0.16),
+                Colors.transparent,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                blurRadius: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEdgeVignette() {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.18,
+            colors: [
+              Colors.transparent,
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.16),
+              Colors.black.withValues(alpha: 0.32),
+            ],
+            stops: const [
+              0.0,
+              0.56,
+              0.84,
+              1.0,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ===========================================================================
   // TOP BAR
   // ===========================================================================
 
-  Widget _buildTopBar({
-    required bool compact,
-  }) {
-    final double progress =
-        (_currentPage + 1) / _totalPages;
+  Widget _buildTopBar({required bool compact}) {
+    final double progress = (_currentPage + 1) / _totalPages;
 
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Row(
-        children: [
-          _buildBackButton(),
+      child: SizedBox(
+        height: compact ? 48 : 58,
+        child: Row(
+          children: [
+            _buildBackButton(),
 
-          Expanded(
-            child: Column(
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) {
-                    return LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.secondary,
-                      ],
-                    ).createShader(bounds);
-                  },
-                  child: const Text(
-                    'ELOQIA AI',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 4.5,
-                    ),
-                  ),
-                ),
+            Expanded(
+              child: _buildBrandCenter(
+                progress: progress,
+                compact: compact,
+              ),
+            ),
 
-                if (!compact) ...[
-                  const SizedBox(height: 5),
+            _buildPageCounter(),
+          ],
+        ),
+      ),
+    );
+  }
 
-                  Text(
-                    _currentPage ==
-                            _totalPages - 1
-                        ? 'FINAL STEP'
-                        : 'CREATING YOUR LEARNING PROFILE',
-                    style: TextStyle(
-                      color: Colors.white.withValues(
-                        alpha: 0.28,
-                      ),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.8,
-                    ),
-                  ),
-
-                  const SizedBox(height: 9),
-
-                  SizedBox(
-                    width: 120,
-                    child: ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 2,
-                        backgroundColor:
-                            Colors.white.withValues(
-                          alpha: 0.055,
-                        ),
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(
-                          AppColors.primary.withValues(
-                            alpha: 0.72,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+  Widget _buildBrandCenter({
+    required double progress,
+    required bool compact,
+  }) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                AppColors.primary,
+                Colors.white,
+                Colors.white.withValues(alpha: 0.92),
+                AppColors.secondary,
               ],
+              stops: const [
+                0.0,
+                0.38,
+                0.58,
+                1.0,
+              ],
+            ).createShader(bounds);
+          },
+          child: const Text(
+            'ELOQIA AI',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 4.8,
+              height: 1,
+            ),
+          ),
+        ),
+
+        if (!compact) ...[
+          const SizedBox(height: 5),
+
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: Text(
+              _currentPage == _totalPages - 1
+                  ? 'FINAL STEP'
+                  : 'CRAFTING YOUR LEARNING PROFILE',
+              key: ValueKey<bool>(
+                _currentPage == _totalPages - 1,
+              ),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.28),
+                fontSize: 7.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2.0,
+              ),
             ),
           ),
 
-          SizedBox(
-            width: 48,
-            child: Text(
-              '${(_currentPage + 1).toString().padLeft(2, '0')}/'
-              '${_totalPages.toString().padLeft(2, '0')}',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: Colors.white.withValues(
-                  alpha: 0.38,
+          const SizedBox(height: 8),
+
+          _buildPremiumProgressBar(progress),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPremiumProgressBar(double progress) {
+    return Container(
+      width: 156,
+      height: 5,
+      padding: const EdgeInsets.all(1),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.035),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: Stack(
+          children: [
+            FractionallySizedBox(
+              widthFactor: progress.clamp(0.0, 1.0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.secondary,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.48),
+                      blurRadius: 9,
+                    ),
+                  ],
                 ),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
               ),
+            ),
+
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  height: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(alpha: 0.34),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageCounter() {
+    return SizedBox(
+      width: 58,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            (_currentPage + 1).toString().padLeft(2, '0'),
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.62),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '/ ${_totalPages.toString().padLeft(2, '0')}',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.22),
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              height: 1,
             ),
           ),
         ],
@@ -559,35 +819,41 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       width: 48,
       height: 48,
       child: AnimatedOpacity(
-        duration: const Duration(
-          milliseconds: 250,
-        ),
-        opacity: _currentPage == 0 ? 0 : 1,
+        duration: const Duration(milliseconds: 250),
+        opacity: _currentPage == 0 ? 0.0 : 1.0,
         child: IgnorePointer(
           ignoring: _currentPage == 0,
           child: ClipOval(
             child: BackdropFilter(
               filter: ImageFilter.blur(
-                sigmaX: 18,
-                sigmaY: 18,
+                sigmaX: 22,
+                sigmaY: 22,
               ),
-              child: Container(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(
-                    alpha: 0.035,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.085),
+                      Colors.white.withValues(alpha: 0.022),
+                    ],
                   ),
                   border: Border.all(
-                    color: Colors.white.withValues(
-                      alpha: 0.075,
-                    ),
+                    color: Colors.white.withValues(alpha: 0.11),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: 0.18,
-                      ),
+                      color: Colors.black.withValues(alpha: 0.24),
+                      blurRadius: 26,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.045),
                       blurRadius: 20,
+                      spreadRadius: -3,
                     ),
                   ],
                 ),
@@ -598,9 +864,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Icons.arrow_back_rounded,
                     size: 18,
                   ),
-                  color: Colors.white.withValues(
-                    alpha: 0.78,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.84),
                 ),
               ),
             ),
@@ -624,7 +888,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'A few thoughtful questions will help Eloqia understand how you learn, what you want to achieve, and how your AI tutor should guide you.',
       child: const _PremiumInfoCard(
         icon: Icons.psychology_alt_rounded,
-        title: 'Your experience will be unique.',
+        title: 'Your experience will be uniquely yours.',
         subtitle:
             'There are no right or wrong answers. Choose what feels most like you.',
       ),
@@ -643,70 +907,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: 'What should we\ncall you?',
       description:
           'Your name makes every interaction with Eloqia feel a little more personal.',
-      child: TextField(
+      child: _PremiumTextField(
+        initialValue: _profile.name,
         onChanged: (value) {
           setState(() {
             _profile.name = value;
           });
         },
-        textCapitalization:
-            TextCapitalization.words,
-        cursorColor: AppColors.primary,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Your first name',
-          hintStyle: TextStyle(
-            color: Colors.white.withValues(
-              alpha: 0.25,
-            ),
-          ),
-          prefixIcon: Icon(
-            Icons.person_outline_rounded,
-            color: AppColors.primary,
-          ),
-          filled: true,
-          fillColor: Colors.white.withValues(
-            alpha: 0.045,
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 21,
-          ),
-          border: OutlineInputBorder(
-            borderRadius:
-                BorderRadius.circular(22),
-            borderSide: BorderSide(
-              color: Colors.white.withValues(
-                alpha: 0.07,
-              ),
-            ),
-          ),
-          enabledBorder:
-              OutlineInputBorder(
-            borderRadius:
-                BorderRadius.circular(22),
-            borderSide: BorderSide(
-              color: Colors.white.withValues(
-                alpha: 0.07,
-              ),
-            ),
-          ),
-          focusedBorder:
-              OutlineInputBorder(
-            borderRadius:
-                BorderRadius.circular(22),
-            borderSide: BorderSide(
-              color: AppColors.primary
-                  .withValues(alpha: 0.55),
-              width: 1.2,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1458,20 +1665,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
 
           SizedBox(
-            height: compact ? 10 : 16,
+            height: compact ? 8 : 13,
           ),
 
           OnboardingButton(
             label: _currentPage == 0
                 ? 'Begin my journey'
                 : isLastPage
-                    ? 'Create my Eloqia experience'
-                    : 'Continue',
+                ? 'Create my Eloqia experience'
+                : 'Continue',
             icon: _currentPage == 0
                 ? Icons.arrow_forward_rounded
                 : isLastPage
-                    ? Icons.auto_awesome_rounded
-                    : Icons.arrow_forward_rounded,
+                ? Icons.auto_awesome_rounded
+                : Icons.arrow_forward_rounded,
             enabled: _canContinue,
             onPressed: _canContinue
                 ? _nextPage
@@ -1506,177 +1713,353 @@ class _QuestionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final double opacity =
-            Curves.easeOut.transform(
-          controller.value,
-        );
+    final Animation<double> entrance = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+    );
 
-        final double scale =
-            0.97 +
-                (0.03 * controller.value);
+    return AnimatedBuilder(
+      animation: entrance,
+      builder: (context, pageChild) {
+        final double opacity =
+            entrance.value.clamp(0.0, 1.0);
+
+        final double verticalOffset =
+            24.0 * (1.0 - entrance.value);
 
         return Opacity(
           opacity: opacity,
-          child: Transform.scale(
-            scale: scale,
-            child: SingleChildScrollView(
-              physics:
-                  const BouncingScrollPhysics(),
-              padding:
-                  const EdgeInsets.only(
-                bottom: 8,
+          child: Transform.translate(
+            offset: Offset(0, verticalOffset),
+            child: pageChild,
+          ),
+        );
+      },
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+          vertical: 8,
+          horizontal: 2,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeroIcon(),
+            const SizedBox(height: 22),
+
+            Text(
+              eyebrow,
+              style: TextStyle(
+                color: AppColors.primary.withValues(
+                  alpha: 0.92,
+                ),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2.15,
+                height: 1,
               ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(
-                    maxWidth: 700,
+            ),
+
+            const SizedBox(height: 11),
+
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 31,
+                height: 1.08,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.85,
+              ),
+            ),
+
+            const SizedBox(height: 13),
+
+            Text(
+              description,
+              style: TextStyle(
+                color: Colors.white.withValues(
+                  alpha: 0.48,
+                ),
+                fontSize: 13,
+                height: 1.52,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.02,
+              ),
+            ),
+
+            const SizedBox(height: 27),
+
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroIcon() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                AppColors.primary.withValues(
+                  alpha: 0.16,
+                ),
+                AppColors.secondary.withValues(
+                  alpha: 0.045,
+                ),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.075),
+                Colors.white.withValues(alpha: 0.022),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: 0.15,
+                ),
+                blurRadius: 30,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: 0.20,
+                ),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(1),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary.withValues(
+                    alpha: 0.20,
                   ),
-                  child: GlassCard(
-                    padding:
-                        const EdgeInsets.all(30),
-                    borderRadius:
-                        BorderRadius.circular(36),
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .stretch,
-                      children: [
-                        _PremiumIcon(
-                          icon: icon,
-                        ),
+                  AppColors.secondary.withValues(
+                    alpha: 0.07,
+                  ),
+                ],
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white.withValues(
+                alpha: 0.94,
+              ),
+              size: 25,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-                        const SizedBox(
-                          height: 22,
-                        ),
+// =============================================================================
+// PREMIUM TEXT FIELD
+// =============================================================================
 
-                        Text(
-                          eyebrow,
-                          style: TextStyle(
-                            color:
-                                AppColors.primary,
-                            fontSize: 10,
-                            fontWeight:
-                                FontWeight.w900,
-                            letterSpacing: 2.4,
-                          ),
-                        ),
+class _PremiumTextField extends StatefulWidget {
+  final String initialValue;
+  final ValueChanged<String> onChanged;
 
-                        const SizedBox(
-                          height: 10,
-                        ),
+  const _PremiumTextField({
+    required this.initialValue,
+    required this.onChanged,
+  });
 
-                        Text(
-                          title,
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors.white,
-                            fontSize: 30,
-                            height: 1.12,
-                            fontWeight:
-                                FontWeight.w800,
-                            letterSpacing: -0.7,
-                          ),
-                        ),
+  @override
+  State<_PremiumTextField> createState() =>
+      _PremiumTextFieldState();
+}
 
-                        const SizedBox(
-                          height: 13,
-                        ),
+class _PremiumTextFieldState
+    extends State<_PremiumTextField> {
+  late final TextEditingController _controller;
 
-                        Text(
-                          description,
-                          style: TextStyle(
-                            color: Colors
-                                .white
-                                .withValues(
-                              alpha: 0.48,
-                            ),
-                            fontSize: 14,
-                            height: 1.55,
-                            fontWeight:
-                                FontWeight.w500,
-                          ),
-                        ),
+  bool _focused = false;
 
-                        const SizedBox(
-                          height: 28,
-                        ),
+  @override
+  void initState() {
+    super.initState();
 
-                        child,
-                      ],
+    _controller = TextEditingController(
+      text: widget.initialValue,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (focused) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _focused = focused;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(27),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 28,
+              offset: const Offset(0, 12),
+            ),
+            if (_focused)
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: 0.14,
+                ),
+                blurRadius: 34,
+                spreadRadius: 1,
+              ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(27),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 18,
+              sigmaY: 18,
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(27),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(
+                      alpha: _focused ? 0.065 : 0.045,
                     ),
+                    Colors.white.withValues(
+                      alpha: _focused ? 0.024 : 0.015,
+                    ),
+                  ],
+                ),
+                border: Border.all(
+                  color: _focused
+                      ? AppColors.primary.withValues(
+                          alpha: 0.52,
+                        )
+                      : Colors.white.withValues(
+                          alpha: 0.075,
+                        ),
+                  width: _focused ? 1.2 : 1,
+                ),
+              ),
+              child: TextField(
+                controller: _controller,
+                onChanged: widget.onChanged,
+                textCapitalization:
+                    TextCapitalization.words,
+                cursorColor: AppColors.primary,
+                cursorWidth: 1.5,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Your first name',
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(
+                      alpha: 0.24,
+                    ),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.only(
+                      left: 10,
+                      right: 4,
+                    ),
+                    child: Icon(
+                      Icons.person_outline_rounded,
+                      color: _focused
+                          ? AppColors.primary
+                          : Colors.white.withValues(
+                              alpha: 0.40,
+                            ),
+                      size: 21,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  contentPadding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 21,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(27),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(27),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(27),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-// =============================================================================
-// PREMIUM ICON
-// =============================================================================
-
-class _PremiumIcon extends StatelessWidget {
-  final IconData icon;
-
-  const _PremiumIcon({
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 66,
-      height: 66,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(
-              alpha: 0.24,
-            ),
-            AppColors.secondary.withValues(
-              alpha: 0.10,
-            ),
-          ],
         ),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.10,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary
-                .withValues(
-              alpha: 0.16,
-            ),
-            blurRadius: 28,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Icon(
-        icon,
-        color: Colors.white,
-        size: 29,
       ),
     );
   }
 }
-
 // =============================================================================
-// CHOICE DATA
+// PREMIUM CHOICE SYSTEM
 // =============================================================================
 
 class _ChoiceData {
@@ -1712,21 +2095,14 @@ class _SingleChoiceList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        for (int index = 0;
-            index < options.length;
-            index++) ...[
+        for (int index = 0; index < options.length; index++) ...[
           _ChoiceCard(
             data: options[index],
-            selected:
-                selected == options[index].value,
-            onTap: () {
-              onSelected(
-                options[index].value,
-              );
-            },
+            selected: selected == options[index].value,
+            onTap: () => onSelected(options[index].value),
           ),
           if (index < options.length - 1)
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
         ],
       ],
     );
@@ -1751,10 +2127,7 @@ class _SingleChoiceGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (
-        context,
-        constraints,
-      ) {
+      builder: (context, constraints) {
         final bool twoColumns =
             constraints.maxWidth >= 540;
 
@@ -1774,26 +2147,19 @@ class _SingleChoiceGrid extends StatelessWidget {
           gridDelegate:
               const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.55,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.62,
           ),
-          itemBuilder: (
-            context,
-            index,
-          ) {
-            final _ChoiceData option =
-                options[index];
+          itemBuilder: (context, index) {
+            final _ChoiceData option = options[index];
 
             return _ChoiceCard(
               data: option,
               selected:
                   selected == option.value,
-              onTap: () {
-                onSelected(
-                  option.value,
-                );
-              },
+              onTap: () =>
+                  onSelected(option.value),
             );
           },
         );
@@ -1820,15 +2186,9 @@ class _MultiChoiceGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (
-        context,
-        constraints,
-      ) {
+      builder: (context, constraints) {
         final bool twoColumns =
             constraints.maxWidth >= 540;
-
-        final int columns =
-            twoColumns ? 2 : 1;
 
         return Column(
           children: [
@@ -1839,58 +2199,67 @@ class _MultiChoiceGrid extends StatelessWidget {
               itemCount: options.length,
               gridDelegate:
                   SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
+                crossAxisCount:
+                    twoColumns ? 2 : 1,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
                 childAspectRatio:
-                    twoColumns ? 1.55 : 3.8,
+                    twoColumns ? 1.62 : 3.9,
               ),
-              itemBuilder: (
-                context,
-                index,
-              ) {
+              itemBuilder: (context, index) {
                 final _ChoiceData option =
                     options[index];
 
                 return _ChoiceCard(
                   data: option,
                   selected:
-                      selected.contains(
-                    option.value,
-                  ),
-                  onTap: () {
-                    onToggle(
-                      option.value,
-                    );
-                  },
+                      selected.contains(option.value),
+                  onTap: () =>
+                      onToggle(option.value),
                 );
               },
             ),
-
             const SizedBox(height: 14),
-
-            Align(
-              alignment: Alignment.centerLeft,
-              child: AnimatedSwitcher(
-                duration:
-                    const Duration(
-                  milliseconds: 220,
-                ),
-                child: Text(
-                  '${selected.length} selected',
-                  key: ValueKey(
-                    selected.length,
-                  ),
-                  style: TextStyle(
-                    color: AppColors.primary
-                        .withValues(
-                      alpha: 0.72,
+            AnimatedSwitcher(
+              duration:
+                  const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: Align(
+                key: ValueKey<int>(selected.length),
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary
+                                .withValues(alpha: 0.45),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
                     ),
-                    fontSize: 11,
-                    fontWeight:
-                        FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
+                    const SizedBox(width: 8),
+                    Text(
+                      selected.isEmpty
+                          ? 'Select at least one option'
+                          : '${selected.length} selected',
+                      style: TextStyle(
+                        color: Colors.white
+                            .withValues(alpha: 0.42),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1902,10 +2271,10 @@ class _MultiChoiceGrid extends StatelessWidget {
 }
 
 // =============================================================================
-// CHOICE CARD
+// PREMIUM CHOICE CARD
 // =============================================================================
 
-class _ChoiceCard extends StatelessWidget {
+class _ChoiceCard extends StatefulWidget {
   final _ChoiceData data;
   final bool selected;
   final VoidCallback onTap;
@@ -1917,193 +2286,353 @@ class _ChoiceCard extends StatelessWidget {
   });
 
   @override
+  State<_ChoiceCard> createState() =>
+      _ChoiceCardState();
+}
+
+class _ChoiceCardState extends State<_ChoiceCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pressController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pressController = AnimationController(
+      vsync: this,
+      duration:
+          const Duration(milliseconds: 140),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleTap() async {
+    if (_pressController.isAnimating) {
+      return;
+    }
+
+    await _pressController.forward();
+
+    if (!mounted) {
+      return;
+    }
+
+    await _pressController.reverse();
+
+    if (!mounted) {
+      return;
+    }
+
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration:
-            const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-        padding:
-            const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          borderRadius:
-              BorderRadius.circular(23),
-          gradient: selected
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary
-                        .withValues(
-                      alpha: 0.13,
+    return AnimatedBuilder(
+      animation: _pressController,
+      builder: (context, child) {
+        final double scale =
+            1.0 - (_pressController.value * 0.018);
+
+        return Transform.scale(
+          scale: scale,
+          child: child,
+        );
+      },
+      child: GestureDetector(
+        onTap: _handleTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration:
+              const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(24),
+            gradient: widget.selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary
+                          .withValues(alpha: 0.16),
+                      AppColors.secondary
+                          .withValues(alpha: 0.075),
+                      Colors.white
+                          .withValues(alpha: 0.025),
+                    ],
+                  )
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white
+                          .withValues(alpha: 0.045),
+                      Colors.white
+                          .withValues(alpha: 0.018),
+                    ],
+                  ),
+            border: Border.all(
+              color: widget.selected
+                  ? AppColors.primary
+                      .withValues(alpha: 0.42)
+                  : Colors.white
+                      .withValues(alpha: 0.075),
+              width:
+                  widget.selected ? 1.2 : 1,
+            ),
+            boxShadow: widget.selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary
+                          .withValues(alpha: 0.13),
+                      blurRadius: 28,
+                      spreadRadius: 1,
                     ),
-                    AppColors.secondary
-                        .withValues(
-                      alpha: 0.055,
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black
+                          .withValues(alpha: 0.12),
+                      blurRadius: 20,
+                      offset:
+                          const Offset(0, 8),
                     ),
                   ],
-                )
-              : null,
-          color: selected
-              ? null
-              : Colors.white.withValues(
-                  alpha: 0.028,
-                ),
-          border: Border.all(
-            color: selected
-                ? AppColors.primary
-                    .withValues(
-                    alpha: 0.34,
-                  )
-                : Colors.white.withValues(
-                    alpha: 0.065,
-                  ),
-            width: selected ? 1.2 : 1,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary
-                        .withValues(
-                      alpha: 0.12,
-                    ),
-                    blurRadius: 24,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration:
-                  const Duration(
-                milliseconds: 250,
+          child: Row(
+            children: [
+              _ChoiceIcon(
+                icon: widget.data.icon,
+                selected: widget.selected,
               ),
-              width: 48,
-              height: 48,
+              const SizedBox(width: 13),
+              Expanded(
+                child: _ChoiceText(
+                  data: widget.data,
+                  selected: widget.selected,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ChoiceSelectionIndicator(
+                selected: widget.selected,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// CHOICE ICON
+// =============================================================================
+
+class _ChoiceIcon extends StatelessWidget {
+  final IconData icon;
+  final bool selected;
+
+  const _ChoiceIcon({
+    required this.icon,
+    required this.selected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration:
+          const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: selected
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary,
+                  AppColors.secondary,
+                ],
+              )
+            : null,
+        color: selected
+            ? null
+            : Colors.white.withValues(alpha: 0.045),
+        border: Border.all(
+          color: selected
+              ? Colors.white
+                  .withValues(alpha: 0.22)
+              : Colors.white
+                  .withValues(alpha: 0.075),
+        ),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: AppColors.primary
+                      .withValues(alpha: 0.28),
+                  blurRadius: 20,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+      child: AnimatedScale(
+        scale: selected ? 1.0 : 0.94,
+        duration:
+            const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        child: Icon(
+          icon,
+          color: selected
+              ? Colors.white
+              : Colors.white
+                  .withValues(alpha: 0.58),
+          size: 20,
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// CHOICE TEXT
+// =============================================================================
+
+class _ChoiceText extends StatelessWidget {
+  final _ChoiceData data;
+  final bool selected;
+
+  const _ChoiceText({
+    required this.data,
+    required this.selected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      mainAxisAlignment:
+          MainAxisAlignment.center,
+      children: [
+        AnimatedDefaultTextStyle(
+          duration:
+              const Duration(milliseconds: 250),
+          style: TextStyle(
+            color: Colors.white.withValues(
+              alpha: selected ? 0.98 : 0.88,
+            ),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.1,
+          ),
+          child: Text(
+            data.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          data.subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white.withValues(
+              alpha: selected ? 0.52 : 0.37,
+            ),
+            fontSize: 10.5,
+            height: 1.3,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// CHOICE SELECTION INDICATOR
+// =============================================================================
+
+class _ChoiceSelectionIndicator
+    extends StatelessWidget {
+  final bool selected;
+
+  const _ChoiceSelectionIndicator({
+    required this.selected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration:
+          const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutBack,
+      transitionBuilder:
+          (child, animation) {
+        return ScaleTransition(
+          scale: animation,
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+      },
+      child: selected
+          ? Container(
+              key: const ValueKey<String>(
+                'selected',
+              ),
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: selected
-                    ? LinearGradient(
-                        colors: [
-                          AppColors.primary,
-                          AppColors.secondary,
-                        ],
-                      )
-                    : null,
-                color: selected
-                    ? null
-                    : Colors.white
-                        .withValues(
-                        alpha: 0.045,
-                      ),
-                border: Border.all(
-                  color: selected
-                      ? Colors.white
-                          .withValues(
-                          alpha: 0.20,
-                        )
-                      : Colors.white
-                          .withValues(
-                          alpha: 0.065,
-                        ),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary,
+                    AppColors.secondary,
+                  ],
                 ),
-              ),
-              child: Icon(
-                data.icon,
-                color: selected
-                    ? Colors.white
-                    : Colors.white
-                        .withValues(
-                        alpha: 0.56,
-                      ),
-                size: 20,
-              ),
-            ),
-
-            const SizedBox(width: 13),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  Text(
-                    data.title,
-                    maxLines: 1,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style:
-                        const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
-                  ),
-
-                  const SizedBox(height: 3),
-
-                  Text(
-                    data.subtitle,
-                    maxLines: 2,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white
-                          .withValues(
-                        alpha: 0.40,
-                      ),
-                      fontSize: 10.5,
-                      height: 1.25,
-                      fontWeight:
-                          FontWeight.w500,
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary
+                        .withValues(alpha: 0.30),
+                    blurRadius: 16,
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(width: 8),
-
-            AnimatedSwitcher(
-              duration:
-                  const Duration(
-                milliseconds: 220,
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.white,
+                size: 15,
               ),
-              transitionBuilder: (
-                child,
-                animation,
-              ) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: child,
-                );
-              },
-              child: Icon(
-                selected
-                    ? Icons
-                        .check_circle_rounded
-                    : Icons
-                        .radio_button_unchecked_rounded,
-                key: ValueKey(selected),
-                color: selected
-                    ? AppColors.primary
-                    : Colors.white
-                        .withValues(
-                        alpha: 0.16,
-                      ),
-                size: 22,
+            )
+          : Container(
+              key: const ValueKey<String>(
+                'unselected',
+              ),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white
+                    .withValues(alpha: 0.025),
+                border: Border.all(
+                  color: Colors.white
+                      .withValues(alpha: 0.12),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -2112,7 +2641,8 @@ class _ChoiceCard extends StatelessWidget {
 // PREMIUM INFO CARD
 // =============================================================================
 
-class _PremiumInfoCard extends StatelessWidget {
+class _PremiumInfoCard
+    extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -2126,46 +2656,63 @@ class _PremiumInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       decoration: BoxDecoration(
         borderRadius:
-            BorderRadius.circular(24),
-        color: Colors.white.withValues(
-          alpha: 0.035,
+            BorderRadius.circular(26),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white
+                .withValues(alpha: 0.055),
+            Colors.white
+                .withValues(alpha: 0.018),
+          ],
         ),
         border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.065,
-          ),
+          color: Colors.white
+              .withValues(alpha: 0.075),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black
+                .withValues(alpha: 0.12),
+            blurRadius: 30,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.primary
-                  .withValues(
-                alpha: 0.08,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary
+                      .withValues(alpha: 0.18),
+                  AppColors.secondary
+                      .withValues(alpha: 0.08),
+                ],
               ),
               border: Border.all(
                 color: AppColors.primary
-                    .withValues(
-                  alpha: 0.15,
-                ),
+                    .withValues(alpha: 0.18),
               ),
             ),
             child: Icon(
               icon,
-              color: AppColors.primary,
+              color: Colors.white
+                  .withValues(alpha: 0.88),
               size: 22,
             ),
           ),
-
           const SizedBox(width: 15),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -2173,26 +2720,22 @@ class _PremiumInfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.1,
                   ),
                 ),
-
-                const SizedBox(height: 4),
-
+                const SizedBox(height: 5),
                 Text(
                   subtitle,
                   style: TextStyle(
                     color: Colors.white
-                        .withValues(
-                      alpha: 0.40,
-                    ),
+                        .withValues(alpha: 0.40),
                     fontSize: 11,
-                    height: 1.35,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -2244,48 +2787,44 @@ class _OnboardingCompletionScreenState
   }
 
   void _openHome() {
-  if (!mounted) {
-    return;
-  }
+    if (!mounted) {
+      return;
+    }
 
-  Navigator.of(context).pushReplacement(
-    PageRouteBuilder(
-      transitionDuration: const Duration(
-        milliseconds: 900,
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration:
+            const Duration(milliseconds: 900),
+        pageBuilder:
+            (context, animation, secondaryAnimation) {
+          return const HomeScreen();
+        },
+        transitionsBuilder: (
+          context,
+          animation,
+          secondaryAnimation,
+          child,
+        ) {
+          final Animation<double> curved =
+              CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(
+                begin: 0.985,
+                end: 1.0,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
       ),
-      pageBuilder: (
-        context,
-        animation,
-        secondaryAnimation,
-      ) {
-        return const HomeScreen();
-      },
-      transitionsBuilder: (
-        context,
-        animation,
-        secondaryAnimation,
-        child,
-      ) {
-        final Animation<double> curved =
-            CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-        );
-
-        return FadeTransition(
-          opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(
-              begin: 0.985,
-              end: 1.0,
-            ).animate(curved),
-            child: child,
-          ),
-        );
-      },
-    ),
-  );
-}
+    );
+  }
 
   @override
   void dispose() {
@@ -2298,31 +2837,26 @@ class _OnboardingCompletionScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const OnboardingBackground(
             child: SizedBox.expand(),
           ),
-
           Center(
             child: AnimatedBuilder(
               animation: _controller,
-              builder: (
-                context,
-                child,
-              ) {
+              builder: (context, child) {
                 final double progress =
                     Curves.easeOutCubic.transform(
                   _controller.value,
                 );
 
                 return Opacity(
-                  opacity: progress.clamp(
-                    0.0,
-                    1.0,
-                  ),
+                  opacity:
+                      progress.clamp(0.0, 1.0),
                   child: Transform.scale(
-                    scale: 0.88 +
-                        (progress * 0.12),
+                    scale:
+                        0.88 + (progress * 0.12),
                     child: Column(
                       mainAxisAlignment:
                           MainAxisAlignment.center,
@@ -2330,34 +2864,27 @@ class _OnboardingCompletionScreenState
                         _CompletionOrb(
                           progress: progress,
                         ),
-
-                        const SizedBox(
-                          height: 34,
-                        ),
-
+                        const SizedBox(height: 36),
                         const Text(
                           'Your Eloqia experience',
                           textAlign:
                               TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 25,
                             fontWeight:
                                 FontWeight.w800,
-                            letterSpacing: -0.5,
+                            letterSpacing: -0.7,
                           ),
                         ),
-
-                        const SizedBox(
-                          height: 10,
-                        ),
-
+                        const SizedBox(height: 10),
                         Text(
                           widget.profile.name
                                   .trim()
                                   .isEmpty
                               ? 'is being prepared ✨'
-                              : 'is being prepared for ${widget.profile.name.trim()} ✨',
+                              : 'is being prepared for '
+                                  '${widget.profile.name.trim()} ✨',
                           textAlign:
                               TextAlign.center,
                           style: TextStyle(
@@ -2370,11 +2897,7 @@ class _OnboardingCompletionScreenState
                                 FontWeight.w500,
                           ),
                         ),
-
-                        const SizedBox(
-                          height: 26,
-                        ),
-
+                        const SizedBox(height: 28),
                         _CompletionIndicator(
                           progress: progress,
                         ),
@@ -2395,7 +2918,8 @@ class _OnboardingCompletionScreenState
 // COMPLETION ORB
 // =============================================================================
 
-class _CompletionOrb extends StatelessWidget {
+class _CompletionOrb
+    extends StatelessWidget {
   final double progress;
 
   const _CompletionOrb({
@@ -2408,24 +2932,39 @@ class _CompletionOrb extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Container(
-          width: 180,
-          height: 180,
+          width: 220,
+          height: 220,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                AppColors.primary.withValues(
-                  alpha: 0.12 * progress,
+                AppColors.primary
+                    .withValues(
+                  alpha: 0.14 * progress,
+                ),
+                AppColors.secondary
+                    .withValues(
+                  alpha: 0.045 * progress,
                 ),
                 Colors.transparent,
               ],
             ),
           ),
         ),
-
         Container(
-          width: 120,
-          height: 120,
+          width: 154,
+          height: 154,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white
+                  .withValues(alpha: 0.055),
+            ),
+          ),
+        ),
+        Container(
+          width: 122,
+          height: 122,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
@@ -2437,18 +2976,25 @@ class _CompletionOrb extends StatelessWidget {
               ],
             ),
             border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.18,
-              ),
+              color: Colors.white
+                  .withValues(alpha: 0.20),
             ),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary
                     .withValues(
-                  alpha: 0.35 * progress,
+                  alpha: 0.38 * progress,
                 ),
                 blurRadius: 70,
                 spreadRadius: 12,
+              ),
+              BoxShadow(
+                color: AppColors.secondary
+                    .withValues(
+                  alpha: 0.16 * progress,
+                ),
+                blurRadius: 100,
+                spreadRadius: 4,
               ),
             ],
           ),
@@ -2478,36 +3024,48 @@ class _CompletionIndicator
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 150,
+      width: 160,
       child: ClipRRect(
         borderRadius:
             BorderRadius.circular(999),
-        child: LinearProgressIndicator(
-          value: progress,
-          minHeight: 3,
-          backgroundColor:
-              Colors.white.withValues(
-            alpha: 0.06,
-          ),
-          valueColor:
-              AlwaysStoppedAnimation<Color>(
-            AppColors.primary.withValues(
-              alpha: 0.75,
+        child: Stack(
+          children: [
+            Container(
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white
+                    .withValues(alpha: 0.055),
+                borderRadius:
+                    BorderRadius.circular(999),
+              ),
             ),
-          ),
+            FractionallySizedBox(
+              widthFactor:
+                  progress.clamp(0.0, 1.0),
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.secondary,
+                    ],
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary
+                          .withValues(alpha: 0.35),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-// =============================================================================
-// TEMPORARY HOME TARGET
-// =============================================================================
-//
-// This is intentionally kept as a safe navigation target until we connect
-// the onboarding directly to the existing HomeScreen.
-//
-// The real LearningProfile is already passed here and preserved.
-//
-

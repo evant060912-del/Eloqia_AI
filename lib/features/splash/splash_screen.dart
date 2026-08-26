@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../app/persistent_app_controller.dart';
+import '../../app/persistent_app_state.dart';
 import '../../theme/app_colors.dart';
+import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({
-    super.key,
-  });
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -29,7 +31,10 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _ringFade;
   late final Animation<double> _ringScale;
 
-  final List<_SplashParticle> _particles = [];
+  final List<_SplashParticle> _particles = <_SplashParticle>[];
+
+  Timer? _navigationTimer;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -39,127 +44,74 @@ class _SplashScreenState extends State<SplashScreen>
 
     _masterController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        milliseconds: 3600,
-      ),
+      duration: const Duration(milliseconds: 3600),
     );
 
     _orbitalController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        seconds: 14,
-      ),
+      duration: const Duration(seconds: 14),
     )..repeat();
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        milliseconds: 2400,
-      ),
+      duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
 
     _particleController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        seconds: 12,
-      ),
+      duration: const Duration(seconds: 12),
     )..repeat();
 
     _logoFade = CurvedAnimation(
       parent: _masterController,
-      curve: const Interval(
-        0.0,
-        0.34,
-        curve: Curves.easeOutCubic,
+      curve: const Interval(0.0, 0.34, curve: Curves.easeOutCubic),
+    );
+
+    _logoScale = Tween<double>(begin: 0.72, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _masterController,
+        curve: const Interval(0.0, 0.48, curve: Curves.easeOutBack),
       ),
     );
 
-    _logoScale = Tween<double>(
-      begin: 0.72,
-      end: 1.0,
-    ).animate(
+    _logoGlow = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _masterController,
-        curve: const Interval(
-          0.0,
-          0.48,
-          curve: Curves.easeOutBack,
-        ),
-      ),
-    );
-
-    _logoGlow = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _masterController,
-        curve: const Interval(
-          0.08,
-          0.62,
-          curve: Curves.easeOutCubic,
-        ),
+        curve: const Interval(0.08, 0.62, curve: Curves.easeOutCubic),
       ),
     );
 
     _ringFade = CurvedAnimation(
       parent: _masterController,
-      curve: const Interval(
-        0.08,
-        0.55,
-        curve: Curves.easeOut,
-      ),
+      curve: const Interval(0.08, 0.55, curve: Curves.easeOut),
     );
 
-    _ringScale = Tween<double>(
-      begin: 0.72,
-      end: 1.0,
-    ).animate(
+    _ringScale = Tween<double>(begin: 0.72, end: 1.0).animate(
       CurvedAnimation(
         parent: _masterController,
-        curve: const Interval(
-          0.08,
-          0.68,
-          curve: Curves.easeOutCubic,
-        ),
+        curve: const Interval(0.08, 0.68, curve: Curves.easeOutCubic),
       ),
     );
 
     _contentFade = CurvedAnimation(
       parent: _masterController,
-      curve: const Interval(
-        0.42,
-        0.82,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0.42, 0.82, curve: Curves.easeOutCubic),
     );
 
-    _contentSlide = Tween<double>(
-      begin: 24,
-      end: 0,
-    ).animate(
+    _contentSlide = Tween<double>(begin: 24, end: 0).animate(
       CurvedAnimation(
         parent: _masterController,
-        curve: const Interval(
-          0.42,
-          0.86,
-          curve: Curves.easeOutCubic,
-        ),
+        curve: const Interval(0.42, 0.86, curve: Curves.easeOutCubic),
       ),
     );
 
     _masterController.forward();
 
-    Future.delayed(
-      const Duration(
-        milliseconds: 5200,
-      ),
-      _openOnboarding,
-    );
+    _scheduleNavigation();
   }
 
   void _createParticles() {
-    final random = math.Random(42);
+    final math.Random random = math.Random(42);
 
     for (int i = 0; i < 38; i++) {
       _particles.add(
@@ -175,54 +127,90 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _openOnboarding() {
-    if (!mounted) {
+  void _scheduleNavigation() {
+    _navigationTimer = Timer(
+      const Duration(milliseconds: 5200),
+      _resolveDestination,
+    );
+  }
+
+  void _resolveDestination() {
+    if (!mounted || _hasNavigated) {
       return;
     }
 
+    final PersistentAppState state = PersistentAppController.instance.state;
+
+    switch (state.status) {
+      case PersistentAppStatus.ready:
+        _openHome();
+        break;
+
+      case PersistentAppStatus.firstLaunch:
+      case PersistentAppStatus.onboardingRequired:
+      case PersistentAppStatus.unknown:
+        _openOnboarding();
+        break;
+    }
+  }
+
+  void _openHome() {
+    _navigateTo(const HomeScreen());
+  }
+
+  void _openOnboarding() {
+    _navigateTo(const OnboardingScreen());
+  }
+
+  void _navigateTo(Widget destination) {
+    if (!mounted || _hasNavigated) {
+      return;
+    }
+
+    _hasNavigated = true;
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        transitionDuration: const Duration(
-          milliseconds: 1100,
-        ),
-        reverseTransitionDuration: const Duration(
-          milliseconds: 700,
-        ),
-        pageBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-        ) {
-          return const OnboardingScreen();
-        },
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
-          final curvedAnimation = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
+        transitionDuration: const Duration(milliseconds: 1100),
+        reverseTransitionDuration: const Duration(milliseconds: 700),
+        pageBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+            ) {
+              return destination;
+            },
+        transitionsBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+              Widget child,
+            ) {
+              final Animation<double> curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
 
-          return FadeTransition(
-            opacity: curvedAnimation,
-            child: ScaleTransition(
-              scale: Tween<double>(
-                begin: 1.035,
-                end: 1.0,
-              ).animate(curvedAnimation),
-              child: child,
-            ),
-          );
-        },
+              return FadeTransition(
+                opacity: curvedAnimation,
+                child: ScaleTransition(
+                  scale: Tween<double>(
+                    begin: 1.035,
+                    end: 1.0,
+                  ).animate(curvedAnimation),
+                  child: child,
+                ),
+              );
+            },
       ),
     );
   }
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _masterController.dispose();
     _orbitalController.dispose();
     _pulseController.dispose();
@@ -236,36 +224,24 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       body: LayoutBuilder(
-        builder: (
-          context,
-          constraints,
-        ) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double width = constraints.maxWidth;
+          final double height = constraints.maxHeight;
 
           final bool isDesktop = width >= 900;
+
           final double logoSize = isDesktop
               ? math.min(width * 0.42, 390)
               : math.min(width * 0.72, 330);
 
           return Stack(
             fit: StackFit.expand,
-            children: [
-              _buildBackground(
-                width,
-                height,
-              ),
+            children: <Widget>[
+              _buildBackground(width, height),
               _buildParticles(),
-              _buildAmbientGlow(
-                width,
-                height,
-              ),
-              _buildOrbitalSystem(
-                logoSize,
-              ),
-              _buildMainContent(
-                logoSize,
-              ),
+              _buildAmbientGlow(width, height),
+              _buildOrbitalSystem(logoSize),
+              _buildMainContent(logoSize),
             ],
           );
         },
@@ -273,47 +249,28 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildBackground(
-    double width,
-    double height,
-  ) {
+  Widget _buildBackground(double width, double height) {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(
-          center: const Alignment(
-            0,
-            -0.12,
-          ),
+          center: const Alignment(0, -0.12),
           radius: 1.15,
-          colors: [
-            AppColors.primary.withValues(
-              alpha: 0.075,
-            ),
+          colors: <Color>[
+            AppColors.primary.withValues(alpha: 0.075),
             AppColors.background,
-            Colors.black.withValues(
-              alpha: 0.22,
-            ),
+            Colors.black.withValues(alpha: 0.22),
           ],
-          stops: const [
-            0.0,
-            0.58,
-            1.0,
-          ],
+          stops: const <double>[0.0, 0.58, 1.0],
         ),
       ),
-      child: CustomPaint(
-        painter: _BackgroundGridPainter(),
-      ),
+      child: CustomPaint(painter: _BackgroundGridPainter()),
     );
   }
 
   Widget _buildParticles() {
     return AnimatedBuilder(
       animation: _particleController,
-      builder: (
-        context,
-        child,
-      ) {
+      builder: (BuildContext context, Widget? child) {
         return CustomPaint(
           painter: _ParticlePainter(
             particles: _particles,
@@ -324,48 +281,32 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildAmbientGlow(
-    double width,
-    double height,
-  ) {
+  Widget _buildAmbientGlow(double width, double height) {
     return AnimatedBuilder(
-      animation: Listenable.merge([
+      animation: Listenable.merge(<Listenable>[
         _pulseController,
         _masterController,
       ]),
-      builder: (
-        context,
-        child,
-      ) {
-        final pulse =
-            0.88 + (_pulseController.value * 0.12);
+      builder: (BuildContext context, Widget? child) {
+        final double pulse = 0.88 + (_pulseController.value * 0.12);
 
-        final glow =
-            _logoGlow.value * pulse;
+        final double glow = _logoGlow.value * pulse;
 
         return Stack(
           alignment: Alignment.center,
-          children: [
+          children: <Widget>[
             Container(
               width: width * 0.62 * pulse,
               height: width * 0.62 * pulse,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [
-                    AppColors.primary.withValues(
-                      alpha: 0.12 * glow,
-                    ),
-                    AppColors.secondary.withValues(
-                      alpha: 0.055 * glow,
-                    ),
+                  colors: <Color>[
+                    AppColors.primary.withValues(alpha: 0.12 * glow),
+                    AppColors.secondary.withValues(alpha: 0.055 * glow),
                     Colors.transparent,
                   ],
-                  stops: const [
-                    0.0,
-                    0.42,
-                    1.0,
-                  ],
+                  stops: const <double>[0.0, 0.42, 1.0],
                 ),
               ),
             ),
@@ -374,18 +315,14 @@ class _SplashScreenState extends State<SplashScreen>
               height: width * 0.38 * pulse,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                boxShadow: [
+                boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: AppColors.primary.withValues(
-                      alpha: 0.16 * glow,
-                    ),
+                    color: AppColors.primary.withValues(alpha: 0.16 * glow),
                     blurRadius: 110,
                     spreadRadius: 30,
                   ),
                   BoxShadow(
-                    color: AppColors.secondary.withValues(
-                      alpha: 0.08 * glow,
-                    ),
+                    color: AppColors.secondary.withValues(alpha: 0.08 * glow),
                     blurRadius: 160,
                     spreadRadius: 50,
                   ),
@@ -398,40 +335,28 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildOrbitalSystem(
-    double logoSize,
-  ) {
+  Widget _buildOrbitalSystem(double logoSize) {
     return AnimatedBuilder(
-      animation: Listenable.merge([
+      animation: Listenable.merge(<Listenable>[
         _orbitalController,
         _ringFade,
         _ringScale,
       ]),
-      builder: (
-        context,
-        child,
-      ) {
-        final double baseSize =
-            logoSize * 1.22 * _ringScale.value;
+      builder: (BuildContext context, Widget? child) {
+        final double baseSize = logoSize * 1.22 * _ringScale.value;
 
         return Center(
           child: Opacity(
             opacity: _ringFade.value,
             child: Transform.rotate(
-              angle: _orbitalController.value *
-                  math.pi *
-                  2,
+              angle: _orbitalController.value * math.pi * 2,
               child: SizedBox(
                 width: baseSize,
                 height: baseSize,
                 child: Stack(
                   alignment: Alignment.center,
-                  children: [
-                    _buildRing(
-                      size: baseSize,
-                      opacity: 0.16,
-                      strokeWidth: 1.0,
-                    ),
+                  children: <Widget>[
+                    _buildRing(size: baseSize, opacity: 0.16, strokeWidth: 1.0),
                     _buildRing(
                       size: baseSize * 0.86,
                       opacity: 0.10,
@@ -447,17 +372,11 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     _buildOrbitalDot(
                       size: baseSize,
-                      angle: _orbitalController.value *
-                          math.pi *
-                          2,
+                      angle: _orbitalController.value * math.pi * 2,
                     ),
                     _buildOrbitalDot(
                       size: baseSize * 0.86,
-                      angle:
-                          -_orbitalController.value *
-                              math.pi *
-                              4 +
-                          1.4,
+                      angle: -_orbitalController.value * math.pi * 4 + 1.4,
                     ),
                   ],
                 ),
@@ -480,37 +399,27 @@ class _SplashScreenState extends State<SplashScreen>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white.withValues(
-            alpha: opacity,
-          ),
+          color: Colors.white.withValues(alpha: opacity),
           width: strokeWidth,
         ),
       ),
     );
   }
 
-  Widget _buildOrbitalDot({
-    required double size,
-    required double angle,
-  }) {
-    final radius = size / 2;
+  Widget _buildOrbitalDot({required double size, required double angle}) {
+    final double radius = size / 2;
 
     return Transform.translate(
-      offset: Offset(
-        math.cos(angle) * radius,
-        math.sin(angle) * radius,
-      ),
+      offset: Offset(math.cos(angle) * radius, math.sin(angle) * radius),
       child: Container(
         width: 6,
         height: 6,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.primary,
-          boxShadow: [
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: AppColors.primary.withValues(
-                alpha: 0.8,
-              ),
+              color: AppColors.primary.withValues(alpha: 0.8),
               blurRadius: 14,
               spreadRadius: 2,
             ),
@@ -520,48 +429,32 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildMainContent(
-    double logoSize,
-  ) {
+  Widget _buildMainContent(double logoSize) {
     return Center(
       child: AnimatedBuilder(
-        animation: Listenable.merge([
+        animation: Listenable.merge(<Listenable>[
           _masterController,
           _pulseController,
         ]),
-        builder: (
-          context,
-          child,
-        ) {
-          final pulse =
-              1.0 +
-              math.sin(
-                    _pulseController.value *
-                        math.pi *
-                        2,
-                  ) *
-                  0.018;
+        builder: (BuildContext context, Widget? child) {
+          final double pulse =
+              1.0 + math.sin(_pulseController.value * math.pi * 2) * 0.018;
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+            children: <Widget>[
               FadeTransition(
                 opacity: _logoFade,
                 child: Transform.scale(
                   scale: _logoScale.value * pulse,
-                  child: _buildLogo(
-                    logoSize,
-                  ),
+                  child: _buildLogo(logoSize),
                 ),
               ),
               const SizedBox(height: 38),
               FadeTransition(
                 opacity: _contentFade,
                 child: Transform.translate(
-                  offset: Offset(
-                    0,
-                    _contentSlide.value,
-                  ),
+                  offset: Offset(0, _contentSlide.value),
                   child: _buildBranding(),
                 ),
               ),
@@ -572,18 +465,16 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildLogo(
-    double size,
-  ) {
+  Widget _buildLogo(double size) {
     return Stack(
       alignment: Alignment.center,
-      children: [
+      children: <Widget>[
         Container(
           width: size * 0.78,
           height: size * 0.78,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
+            boxShadow: <BoxShadow>[
               BoxShadow(
                 color: AppColors.primary.withValues(
                   alpha: 0.32 * _logoGlow.value,
@@ -604,27 +495,19 @@ class _SplashScreenState extends State<SplashScreen>
         Container(
           width: size * 0.76,
           height: size * 0.76,
-          padding: EdgeInsets.all(
-            size * 0.025,
-          ),
+          padding: EdgeInsets.all(size * 0.025),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(
-                  alpha: 0.075,
-                ),
-                Colors.white.withValues(
-                  alpha: 0.018,
-                ),
+              colors: <Color>[
+                Colors.white.withValues(alpha: 0.075),
+                Colors.white.withValues(alpha: 0.018),
               ],
             ),
             border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.11,
-              ),
+              color: Colors.white.withValues(alpha: 0.11),
               width: 1.2,
             ),
           ),
@@ -644,16 +527,14 @@ class _SplashScreenState extends State<SplashScreen>
 
   Widget _buildBranding() {
     return Column(
-      children: [
+      children: <Widget>[
         ShaderMask(
-          shaderCallback: (bounds) {
+          shaderCallback: (Rect bounds) {
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                Colors.white.withValues(
-                  alpha: 0.88,
-                ),
+              colors: <Color>[
+                Colors.white.withValues(alpha: 0.88),
                 Colors.white,
                 AppColors.primary,
               ],
@@ -673,21 +554,17 @@ class _SplashScreenState extends State<SplashScreen>
         const SizedBox(height: 16),
         Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             Container(
               width: 28,
               height: 1,
-              color: AppColors.primary.withValues(
-                alpha: 0.45,
-              ),
+              color: AppColors.primary.withValues(alpha: 0.45),
             ),
             const SizedBox(width: 13),
             Text(
               'YOUR AI LANGUAGE ACADEMY',
               style: TextStyle(
-                color: Colors.white.withValues(
-                  alpha: 0.48,
-                ),
+                color: Colors.white.withValues(alpha: 0.48),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 2.5,
@@ -697,9 +574,7 @@ class _SplashScreenState extends State<SplashScreen>
             Container(
               width: 28,
               height: 1,
-              color: AppColors.primary.withValues(
-                alpha: 0.45,
-              ),
+              color: AppColors.primary.withValues(alpha: 0.45),
             ),
           ],
         ),
@@ -712,10 +587,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildLoadingIndicator() {
     return AnimatedBuilder(
       animation: _masterController,
-      builder: (
-        context,
-        child,
-      ) {
+      builder: (BuildContext context, Widget? child) {
         return SizedBox(
           width: 120,
           child: ClipRRect(
@@ -723,14 +595,9 @@ class _SplashScreenState extends State<SplashScreen>
             child: LinearProgressIndicator(
               value: _masterController.value,
               minHeight: 2,
-              backgroundColor: Colors.white.withValues(
-                alpha: 0.06,
-              ),
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(
-                AppColors.primary.withValues(
-                  alpha: 0.85,
-                ),
+              backgroundColor: Colors.white.withValues(alpha: 0.06),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primary.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -741,13 +608,6 @@ class _SplashScreenState extends State<SplashScreen>
 }
 
 class _SplashParticle {
-  final double x;
-  final double y;
-  final double radius;
-  final double opacity;
-  final double speed;
-  final double phase;
-
   const _SplashParticle({
     required this.x,
     required this.y,
@@ -756,111 +616,68 @@ class _SplashParticle {
     required this.speed,
     required this.phase,
   });
+
+  final double x;
+  final double y;
+  final double radius;
+  final double opacity;
+  final double speed;
+  final double phase;
 }
 
 class _ParticlePainter extends CustomPainter {
+  const _ParticlePainter({required this.particles, required this.progress});
+
   final List<_SplashParticle> particles;
   final double progress;
 
-  const _ParticlePainter({
-    required this.particles,
-    required this.progress,
-  });
-
   @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
-    for (final particle in particles) {
+  void paint(Canvas canvas, Size size) {
+    for (final _SplashParticle particle in particles) {
       final double drift =
-          math.sin(
-                progress *
-                    math.pi *
-                    2 *
-                    particle.speed +
-                    particle.phase,
-              ) *
-              10;
+          math.sin(progress * math.pi * 2 * particle.speed + particle.phase) *
+          10;
 
-      final double vertical =
-          (progress * 32 * particle.speed) % size.height;
+      final double vertical = (progress * 32 * particle.speed) % size.height;
 
-      final double x =
-          particle.x * size.width + drift;
+      final double x = particle.x * size.width + drift;
 
-      final double y =
-          (particle.y * size.height + vertical) %
-              size.height;
+      final double y = (particle.y * size.height + vertical) % size.height;
 
       final Paint paint = Paint()
-        ..color = Colors.white.withValues(
-          alpha: particle.opacity,
-        )
-        ..maskFilter = const MaskFilter.blur(
-          BlurStyle.normal,
-          2,
-        );
+        ..color = Colors.white.withValues(alpha: particle.opacity)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
 
-      canvas.drawCircle(
-        Offset(x, y),
-        particle.radius,
-        paint,
-      );
+      canvas.drawCircle(Offset(x, y), particle.radius, paint);
     }
   }
 
   @override
-  bool shouldRepaint(
-    covariant _ParticlePainter oldDelegate,
-  ) {
+  bool shouldRepaint(covariant _ParticlePainter oldDelegate) {
     return oldDelegate.progress != progress;
   }
 }
 
 class _BackgroundGridPainter extends CustomPainter {
   @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(
-        alpha: 0.012,
-      )
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.012)
       ..strokeWidth = 0.5;
 
     const double spacing = 72;
 
-    for (
-      double x = 0;
-      x <= size.width;
-      x += spacing
-    ) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
+    for (double x = 0; x <= size.width; x += spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
 
-    for (
-      double y = 0;
-      y <= size.height;
-      y += spacing
-    ) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
+    for (double y = 0; y <= size.height; y += spacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(
-    covariant CustomPainter oldDelegate,
-  ) {
+  bool shouldRepaint(covariant _BackgroundGridPainter oldDelegate) {
     return false;
   }
 }

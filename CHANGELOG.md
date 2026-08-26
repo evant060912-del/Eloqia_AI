@@ -303,24 +303,62 @@ During this version, I learned:
 
 * How to design the foundation of a personalized AI experience
 
----
+v0.5.0] — 26 August 2026
+🧠 Personalized Learning Experience
 
-## 🚀 Next Version
+The fifth milestone of Eloqia AI was completed.
 
-### v0.5.0 — First Real AI Learning Experience
+This version focuses on connecting the personalized learner profile to the main application, introducing persistent progression and creating the foundation of the Eloqia Learning Hub.
 
-Future development will introduce:
+✨ Added
+Personalized Home Experience
+Added personalized HomeScreen using LearningProfile
+Added dynamic learner greeting
+Added persistent XP, level and streak data
+Added daily learning goals
+Added dynamic learning statistics
+Added English Evolution progression section
+Added personalized Daily Intelligence section
+📚 Learning Hub
+Added Learning Hub foundation
+Added Conversation learning experience
+Added Vocabulary learning category
+Added Grammar learning category
+Added Listening learning category
+Added Writing learning category
+Added Academic learning category
+Added reusable learning action components
+🤖 Mia
+Added personalized Mia experience foundation
+Added Mia welcome experience
+Added Mia status presentation
+Added Mia progress experience
+Added Mia personalization architecture
+Prepared the foundation for future interactive AI conversations
+💾 Persistent Progression
+Added persistent learner progression
+Added XP and level persistence
+Added streak tracking
+Added daily goal persistence
+Added skill progression tracking
+Added learning statistics
+Added progression snapshot system
+🔧 Improved
+Improved HomeScreen visual experience
+Improved Liquid Glass interface
+Improved ambient lighting and gradients
+Improved cards, shadows and depth
+Improved animations and transitions
+Improved responsive layouts
+Improved connection between learner profile and progression
+Prepared the application for future adaptive learning
+📚 What I Learned
 
-* Personalized daily AI objectives
+During this version, I learned:
 
-* AI-generated lessons
-
-* Writing exercises and challenges
-
-* Conversations, reading and listening
-
-* Personalized feedback
-
-* AI tutor memory
-
-* Adaptive learning
+How to build a persistent learner progression system
+How to connect stored data to Flutter interfaces
+How to structure a scalable Learning Hub
+How to create personalized application experiences
+How to separate profile, progression and UI architecture
+How to prepare an application for future AI-powered learning experiences

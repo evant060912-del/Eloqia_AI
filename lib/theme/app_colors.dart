@@ -1,189 +1,228 @@
 import 'package:flutter/material.dart';
 
-
+/// Centralized visual identity for Eloqia AI.
+///
+/// This class contains the complete color language used throughout
+/// the application. Keeping colors here allows every screen to share
+/// the same visual identity and makes future design evolution easier.
 class AppColors {
+  AppColors._();
 
   // ============================================================
-  // 🌌 ELOQIA AI BACKGROUND SYSTEM
+  // 🌌 ELOQIA — DEEP SPACE BACKGROUND
   // ============================================================
 
+  /// Main application background.
+  static const Color background = Color(0xFF050817);
 
-  /// Main application background
-  static const Color background =
-      Color(0xFF070B1A);
+  /// Slightly lighter background layer.
+  static const Color backgroundSecondary = Color(0xFF080D20);
 
+  /// Elevated background used behind important sections.
+  static const Color backgroundElevated = Color(0xFF0C132A);
 
-  /// Secondary dark layer
-  static const Color backgroundSecondary =
-      Color(0xFF0B1024);
-
-
-  /// Main glass cards and sections
-  static const Color surface =
-      Color(0xFF121A33);
-
-
-  /// Elevated premium cards
-  static const Color surfaceElevated =
-      Color(0xFF182342);
-
-
+  /// Deepest layer used for visual depth.
+  static const Color backgroundDeep = Color(0xFF03050D);
 
   // ============================================================
-  // 💎 ELOQIA AI BRAND COLORS
+  // 💎 ELOQIA — SURFACE SYSTEM
   // ============================================================
 
+  /// Standard elevated surface.
+  static const Color surface = Color(0xFF111A34);
 
-  /// Main Eloqia cyan identity
-  static const Color primary =
-      Color(0xFF00E5FF);
+  /// Higher elevation surface.
+  static const Color surfaceElevated = Color(0xFF172341);
 
+  /// Premium interactive surface.
+  static const Color surfaceInteractive = Color(0xFF1B294B);
 
-  /// Artificial intelligence purple
-  static const Color secondary =
-      Color(0xFF8B5CF6);
+  /// Subtle translucent glass surface.
+  static const Color glass = Color(0x14FFFFFF);
 
+  /// Stronger glass layer.
+  static const Color glassMedium = Color(0x1FFFFFFF);
 
-  /// Human connection warmth
-  static const Color warmth =
-      Color(0xFFFFB86C);
-
-
-  /// Extra futuristic blue
-  static const Color electricBlue =
-      Color(0xFF2563EB);
-
-
+  /// High-emphasis glass layer.
+  static const Color glassStrong = Color(0x29FFFFFF);
 
   // ============================================================
-  // 🪟 LIQUID GLASS SYSTEM
+  // 🪟 LIQUID GLASS
   // ============================================================
 
+  /// Main glass border.
+  static const Color glassBorder = Color(0x38FFFFFF);
 
-  /// Transparent glass effect
-  static const Color glass =
-      Color(0x33FFFFFF);
+  /// Strong glass border for highlighted components.
+  static const Color glassBorderStrong = Color(0x5CFFFFFF);
 
+  /// Soft internal glass highlight.
+  static const Color glassHighlight = Color(0x18FFFFFF);
 
-  /// Glass borders
-  static const Color glassBorder =
-      Color(0x55FFFFFF);
+  /// Bright glass reflection.
+  static const Color glassReflection = Color(0x26FFFFFF);
 
-
-  /// Soft highlights
-  static const Color glassHighlight =
-      Color(0x22FFFFFF);
-
-
+  /// Dark glass overlay.
+  static const Color glassDark = Color(0x66030712);
 
   // ============================================================
-  // ✨ TEXT SYSTEM
+  // 💎 ELOQIA — PRIMARY BRAND
   // ============================================================
 
+  /// Main Eloqia cyan.
+  static const Color primary = Color(0xFF00E5FF);
 
-  /// Main text
-  static const Color textPrimary =
-      Color(0xFFF8FAFF);
+  /// Brighter cyan used for highlights.
+  static const Color primaryBright = Color(0xFF5CF4FF);
 
+  /// Deep cyan used for visual depth.
+  static const Color primaryDeep = Color(0xFF0097A7);
 
-  /// Secondary descriptions
-  static const Color textSecondary =
-      Color(0xFFA8B3CF);
+  /// AI purple.
+  static const Color secondary = Color(0xFF8B5CF6);
 
+  /// Brighter AI purple.
+  static const Color secondaryBright = Color(0xFFB79AFF);
 
-  /// Disabled information
-  static const Color textMuted =
-      Color(0xFF667085);
+  /// Deep AI purple.
+  static const Color secondaryDeep = Color(0xFF5B21B6);
 
+  /// Human warmth.
+  static const Color warmth = Color(0xFFFFB86C);
 
+  /// Futuristic electric blue.
+  static const Color electricBlue = Color(0xFF2563EB);
 
   // ============================================================
-  // 🚀 ELOQIA LEARNING PROGRESSION
+  // ✨ AI AURA & LIGHT
   // ============================================================
 
+  /// Main Eloqia glow.
+  static const Color glow = Color(0x5200E5FF);
 
-  /// Experience points
-  static const Color xp =
-      Color(0xFFFFD54F);
+  /// Strong cyan aura.
+  static const Color glowStrong = Color(0x7A00E5FF);
 
+  /// AI purple aura.
+  static const Color aura = Color(0x528B5CF6);
 
-  /// Learning streak
-  static const Color streak =
-      Color(0xFFFF7043);
+  /// Strong AI aura.
+  static const Color auraStrong = Color(0x788B5CF6);
 
+  /// Warm ambient light.
+  static const Color warmthGlow = Color(0x4DFFB86C);
 
-  /// Rewards and achievements
-  static const Color reward =
-      Color(0xFFFFC107);
+  // ============================================================
+  // 📝 TEXT SYSTEM
+  // ============================================================
 
+  /// Primary text.
+  static const Color textPrimary = Color(0xFFF8FAFF);
 
+  /// Secondary text.
+  static const Color textSecondary = Color(0xFFA8B3CF);
+
+  /// Muted text.
+  static const Color textMuted = Color(0xFF66728F);
+
+  /// Extremely subtle text.
+  static const Color textDisabled = Color(0xFF46516A);
+
+  /// Text placed on bright primary surfaces.
+  static const Color textOnPrimary = Color(0xFF031016);
+
+  // ============================================================
+  // 🚀 PROGRESSION
+  // ============================================================
+
+  /// Experience points.
+  static const Color xp = Color(0xFFFFD54F);
+
+  /// Learning streak.
+  static const Color streak = Color(0xFFFF7043);
+
+  /// Rewards.
+  static const Color reward = Color(0xFFFFC107);
+
+  /// Level progression.
+  static const Color level = Color(0xFF00E5FF);
+
+  /// Progress completion.
+  static const Color progress = Color(0xFF00E676);
 
   // ============================================================
   // 🎓 LEARNING CATEGORIES
   // ============================================================
 
+  /// Speaking and conversation.
+  static const Color speaking = Color(0xFF00E5FF);
 
-  /// Speaking
-  static const Color speaking =
-      Color(0xFF00E5FF);
+  /// Vocabulary.
+  static const Color vocabulary = Color(0xFF8B5CF6);
 
+  /// Grammar.
+  static const Color grammar = Color(0xFFFF6B9D);
 
-  /// Vocabulary
-  static const Color vocabulary =
-      Color(0xFF8B5CF6);
+  /// Writing.
+  static const Color writing = Color(0xFF00E676);
 
+  /// Reading.
+  static const Color reading = Color(0xFFFFB86C);
 
-  /// Grammar
-  static const Color grammar =
-      Color(0xFFFF6B9D);
+  /// Listening.
+  static const Color listening = Color(0xFF60A5FA);
 
-
-  /// Writing
-  static const Color writing =
-      Color(0xFF00E676);
-
-
-  /// Academic English
-  static const Color academic =
-      Color(0xFFFFB86C);
-
-
+  /// Academic English.
+  static const Color academic = Color(0xFFF59E0B);
 
   // ============================================================
-  // ✅ STATUS COLORS
+  // 👩‍🏫 AI TUTOR
   // ============================================================
 
+  /// Mia's primary visual identity.
+  static const Color mia = Color(0xFF00E5FF);
 
-  static const Color success =
-      Color(0xFF00E676);
+  /// Mia's secondary aura.
+  static const Color miaAura = Color(0xFF8B5CF6);
 
-
-  static const Color warning =
-      Color(0xFFFFC107);
-
-
-  static const Color error =
-      Color(0xFFFF5252);
-
-
+  /// Online / available state.
+  static const Color online = Color(0xFF00E676);
 
   // ============================================================
-  // 🌌 SPECIAL ELOQIA EFFECTS
+  // ✅ SYSTEM STATES
   // ============================================================
 
+  static const Color success = Color(0xFF00E676);
 
-  /// Splash screen glow
-  static const Color glow =
-      Color(0x6600E5FF);
+  static const Color warning = Color(0xFFFFC107);
 
+  static const Color error = Color(0xFFFF5252);
 
-  /// AI purple aura
-  static const Color aura =
-      Color(0x668B5CF6);
+  static const Color info = Color(0xFF60A5FA);
 
+  // ============================================================
+  // 🌑 SHADOWS
+  // ============================================================
 
-  /// Dark shadows
-  static const Color shadow =
-      Color(0x99000000);
+  /// Standard premium shadow.
+  static const Color shadow = Color(0x99000000);
 
+  /// Deeper shadow for floating elements.
+  static const Color shadowDeep = Color(0xCC000000);
+
+  // ============================================================
+  // 🌫️ NEUTRAL TRANSPARENCY
+  // ============================================================
+
+  static const Color white05 = Color(0x0DFFFFFF);
+
+  static const Color white08 = Color(0x14FFFFFF);
+
+  static const Color white12 = Color(0x1FFFFFFF);
+
+  static const Color white18 = Color(0x2EFFFFFF);
+
+  static const Color black35 = Color(0x59000000);
+
+  static const Color black55 = Color(0x8C000000);
 }
