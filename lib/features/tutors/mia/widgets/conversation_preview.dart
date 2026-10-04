@@ -324,7 +324,7 @@ class _ConversationPreviewState
               ),
               const SizedBox(height: 3),
               Text(
-                'Californian English Tutor',
+                'English Tutor',
                 style: TextStyle(
                   color:
                       AppColors.textSecondary.withValues(

@@ -202,7 +202,7 @@ class HeroTutorCard extends StatelessWidget {
 
         const Text(
 
-          'California 🇺🇸',
+          'American English',
 
           style: TextStyle(
 

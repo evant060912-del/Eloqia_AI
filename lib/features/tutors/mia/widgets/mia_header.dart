@@ -290,7 +290,7 @@ class _MiaHeaderState extends State<MiaHeader>
     if (widget.isThinking) {
       label = 'Preparing your next lesson';
     } else if (widget.isOnline) {
-      label = 'Ready to teach · Californian English';
+      label = 'Ready to practice English';
     } else {
       label = 'Currently unavailable';
     }

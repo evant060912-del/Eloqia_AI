@@ -3,14 +3,25 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../models/learning_profile.dart';
+import '../../services/learning/learning_engine.dart';
 import '../../theme/app_colors.dart';
 
 class LearningScreen extends StatefulWidget {
   final LearningProfile profile;
+  final LearningRecommendation recommendation;
+  final int completedSessions;
+  final int learningMinutes;
+  final VoidCallback onStartRecommended;
+  final ValueChanged<String> onActivitySelected;
 
   const LearningScreen({
     super.key,
     required this.profile,
+    required this.recommendation,
+    required this.completedSessions,
+    required this.learningMinutes,
+    required this.onStartRecommended,
+    required this.onActivitySelected,
   });
 
   @override
@@ -48,17 +59,13 @@ class _LearningScreenState extends State<LearningScreen>
   Widget build(BuildContext context) {
     final profile = widget.profile;
 
-    final name = profile.name.trim().isEmpty
-        ? 'Learner'
-        : profile.name.trim();
+    final name = profile.name.trim().isEmpty ? 'Learner' : profile.name.trim();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          _AnimatedBackground(
-            controller: _ambientController,
-          ),
+          _AnimatedBackground(controller: _ambientController),
 
           SafeArea(
             child: AnimatedBuilder(
@@ -71,10 +78,7 @@ class _LearningScreenState extends State<LearningScreen>
                 return Opacity(
                   opacity: progress,
                   child: Transform.translate(
-                    offset: Offset(
-                      0,
-                      28 * (1 - progress),
-                    ),
+                    offset: Offset(0, 28 * (1 - progress)),
                     child: child,
                   ),
                 );
@@ -83,28 +87,21 @@ class _LearningScreenState extends State<LearningScreen>
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      18,
-                      20,
-                      50,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 50),
                     sliver: SliverList(
-                      delegate: SliverChildListDelegate(
-                        [
-                          _buildHeader(name),
-                          const SizedBox(height: 28),
-                          _buildHero(profile),
-                          const SizedBox(height: 20),
-                          _buildDailyMission(profile),
-                          const SizedBox(height: 18),
-                          _buildProgressCard(),
-                          const SizedBox(height: 32),
-                          _buildLearningHeader(),
-                          const SizedBox(height: 16),
-                          _buildLearningGrid(),
-                        ],
-                      ),
+                      delegate: SliverChildListDelegate([
+                        _buildHeader(name),
+                        const SizedBox(height: 28),
+                        _buildHero(profile),
+                        const SizedBox(height: 20),
+                        _buildDailyMission(),
+                        const SizedBox(height: 18),
+                        _buildProgressCard(),
+                        const SizedBox(height: 32),
+                        _buildLearningHeader(),
+                        const SizedBox(height: 16),
+                        _buildLearningGrid(),
+                      ]),
                     ),
                   ),
                 ],
@@ -150,7 +147,9 @@ class _LearningScreenState extends State<LearningScreen>
         const SizedBox(width: 12),
         _GlassIconButton(
           icon: Icons.notifications_none_rounded,
-          onTap: () {},
+          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No new learning notifications.')),
+          ),
         ),
       ],
     );
@@ -168,11 +167,7 @@ class _LearningScreenState extends State<LearningScreen>
           Positioned(
             right: -35,
             top: -45,
-            child: _SoftOrb(
-              color: AppColors.primary,
-              size: 150,
-              opacity: 0.10,
-            ),
+            child: _SoftOrb(color: AppColors.primary, size: 150, opacity: 0.10),
           ),
           Positioned(
             left: -50,
@@ -194,16 +189,11 @@ class _LearningScreenState extends State<LearningScreen>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(17),
                       gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary,
-                          AppColors.secondary,
-                        ],
+                        colors: [AppColors.primary, AppColors.secondary],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(
-                            alpha: 0.28,
-                          ),
+                          color: AppColors.primary.withValues(alpha: 0.28),
                           blurRadius: 28,
                           spreadRadius: 1,
                         ),
@@ -218,15 +208,12 @@ class _LearningScreenState extends State<LearningScreen>
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'YOUR PERSONAL ACADEMY',
                           style: TextStyle(
-                            color: Colors.white.withValues(
-                              alpha: 0.46,
-                            ),
+                            color: Colors.white.withValues(alpha: 0.46),
                             fontSize: 9,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.8,
@@ -261,11 +248,9 @@ class _LearningScreenState extends State<LearningScreen>
               ),
               const SizedBox(height: 9),
               Text(
-                'Eloqia will progressively adapt your learning experience to your goals, level and progress.',
+                'Your next lesson is chosen from your level, interests and recorded practice.',
                 style: TextStyle(
-                  color: Colors.white.withValues(
-                    alpha: 0.58,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.58),
                   fontSize: 13,
                   height: 1.5,
                 ),
@@ -277,7 +262,7 @@ class _LearningScreenState extends State<LearningScreen>
     );
   }
 
-  Widget _buildDailyMission(LearningProfile profile) {
+  Widget _buildDailyMission() {
     return _GlassPanel(
       padding: const EdgeInsets.all(22),
       child: Column(
@@ -287,8 +272,7 @@ class _LearningScreenState extends State<LearningScreen>
             children: [
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'TODAY',
@@ -301,7 +285,7 @@ class _LearningScreenState extends State<LearningScreen>
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Your mission for today',
+                      'Recommended next step',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 21,
@@ -319,32 +303,21 @@ class _LearningScreenState extends State<LearningScreen>
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  color: AppColors.primary.withValues(
-                    alpha: 0.10,
-                  ),
+                  color: AppColors.primary.withValues(alpha: 0.10),
                   border: Border.all(
-                    color: AppColors.primary.withValues(
-                      alpha: 0.18,
-                    ),
+                    color: AppColors.primary.withValues(alpha: 0.18),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.bolt_rounded,
-                      color: AppColors.xp,
-                      size: 15,
-                    ),
-                    const SizedBox(width: 5),
                     Text(
-                      '+40 XP',
+                      'PERSONALIZED',
                       style: TextStyle(
-                        color: Colors.white.withValues(
-                          alpha: 0.82,
-                        ),
-                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 9,
                         fontWeight: FontWeight.w800,
+                        letterSpacing: 0.7,
                       ),
                     ),
                   ],
@@ -357,14 +330,8 @@ class _LearningScreenState extends State<LearningScreen>
             padding: const EdgeInsets.all(17),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              color: Colors.white.withValues(
-                alpha: 0.035,
-              ),
-              border: Border.all(
-                color: Colors.white.withValues(
-                  alpha: 0.07,
-                ),
-              ),
+              color: Colors.white.withValues(alpha: 0.035),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
             ),
             child: Row(
               children: [
@@ -373,9 +340,7 @@ class _LearningScreenState extends State<LearningScreen>
                   height: 44,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(15),
-                    color: AppColors.writing.withValues(
-                      alpha: 0.12,
-                    ),
+                    color: AppColors.writing.withValues(alpha: 0.12),
                   ),
                   child: Icon(
                     Icons.edit_note_rounded,
@@ -384,14 +349,15 @@ class _LearningScreenState extends State<LearningScreen>
                   ),
                 ),
                 const SizedBox(width: 13),
-                const Expanded(
+                Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Writing warm-up',
-                        style: TextStyle(
+                        widget.recommendation.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -399,10 +365,13 @@ class _LearningScreenState extends State<LearningScreen>
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Express your ideas naturally.',
-                        style: TextStyle(
+                        widget.recommendation.reason,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: Colors.white54,
-                          fontSize: 12,
+                          fontSize: 11,
+                          height: 1.35,
                         ),
                       ),
                     ],
@@ -421,17 +390,16 @@ class _LearningScreenState extends State<LearningScreen>
             children: [
               _MissionBadge(
                 icon: Icons.schedule_rounded,
-                label: '10 min',
+                label: '${widget.recommendation.minutes} min',
               ),
               const SizedBox(width: 9),
-              _MissionBadge(
-                icon: Icons.auto_graph_rounded,
-                label: 'Adaptive',
-              ),
+              _MissionBadge(icon: Icons.auto_graph_rounded, label: 'Adaptive'),
               const SizedBox(width: 9),
               _MissionBadge(
                 icon: Icons.stars_rounded,
-                label: 'Beginner',
+                label: widget.recommendation.targetLevel.isEmpty
+                    ? 'Level unset'
+                    : widget.recommendation.targetLevel,
               ),
             ],
           ),
@@ -440,7 +408,7 @@ class _LearningScreenState extends State<LearningScreen>
             width: double.infinity,
             height: 54,
             child: FilledButton(
-              onPressed: () {},
+              onPressed: widget.onStartRecommended,
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.background,
@@ -450,21 +418,22 @@ class _LearningScreenState extends State<LearningScreen>
                 ),
               ),
               child: const Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Begin today\'s session',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                  Flexible(
+                    child: Text(
+                      'Start lesson',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   SizedBox(width: 9),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 18,
-                  ),
+                  Icon(Icons.arrow_forward_rounded, size: 18),
                 ],
               ),
             ),
@@ -476,60 +445,32 @@ class _LearningScreenState extends State<LearningScreen>
 
   Widget _buildProgressCard() {
     return _GlassPanel(
-      padding: const EdgeInsets.all(21),
+      padding: const EdgeInsets.all(18),
       child: Row(
         children: [
-          SizedBox(
-            width: 76,
-            height: 76,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 76,
-                  height: 76,
-                  child: CircularProgressIndicator(
-                    value: 0.64,
-                    strokeWidth: 6,
-                    backgroundColor:
-                        Colors.white.withValues(
-                      alpha: 0.07,
-                    ),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
-                  ),
-                ),
-                const Text(
-                  '64%',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
+          const Icon(
+            Icons.insights_rounded,
+            color: AppColors.primary,
+            size: 30,
           ),
-          const SizedBox(width: 17),
-          const Expanded(
+          const SizedBox(width: 15),
+          Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Your English evolution',
+                const Text(
+                  'Recorded learning',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  'Keep building your rhythm. Every session moves you forward.',
-                  style: TextStyle(
+                  '${widget.completedSessions} completed sessions · '
+                  '${widget.learningMinutes} minutes recorded',
+                  style: const TextStyle(
                     color: Colors.white54,
                     fontSize: 12,
                     height: 1.45,
@@ -549,8 +490,7 @@ class _LearningScreenState extends State<LearningScreen>
       children: [
         const Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Learning experiences',
@@ -564,29 +504,17 @@ class _LearningScreenState extends State<LearningScreen>
               SizedBox(height: 5),
               Text(
                 'Choose an area to explore.',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Colors.white54, fontSize: 13),
               ),
             ],
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: Colors.white.withValues(
-              alpha: 0.04,
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.07,
-              ),
-            ),
+            color: Colors.white.withValues(alpha: 0.04),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
           ),
           child: const Text(
             '6 areas',
@@ -643,11 +571,9 @@ class _LearningScreenState extends State<LearningScreen>
 
     return GridView.builder(
       shrinkWrap: true,
-      physics:
-          const NeverScrollableScrollPhysics(),
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: activities.length,
-      gridDelegate:
-          const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
@@ -657,7 +583,7 @@ class _LearningScreenState extends State<LearningScreen>
         return _LearningActivityCard(
           activity: activities[index],
           index: index,
-          onTap: () {},
+          onTap: () => widget.onActivitySelected(activities[index].title),
         );
       },
     );
@@ -667,9 +593,7 @@ class _LearningScreenState extends State<LearningScreen>
 class _AnimatedBackground extends StatelessWidget {
   final AnimationController controller;
 
-  const _AnimatedBackground({
-    required this.controller,
-  });
+  const _AnimatedBackground({required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -728,18 +652,13 @@ class _SoftOrb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 75,
-        sigmaY: 75,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 75, sigmaY: 75),
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color.withValues(
-            alpha: opacity,
-          ),
+          color: color.withValues(alpha: opacity),
         ),
       ),
     );
@@ -750,37 +669,23 @@ class _GlassPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
 
-  const _GlassPanel({
-    required this.child,
-    required this.padding,
-  });
+  const _GlassPanel({required this.child, required this.padding});
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 24,
-          sigmaY: 24,
-        ),
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            color: Colors.white.withValues(
-              alpha: 0.052,
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.105,
-              ),
-            ),
+            color: Colors.white.withValues(alpha: 0.052),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.105)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: 0.24,
-                ),
+                color: Colors.black.withValues(alpha: 0.24),
                 blurRadius: 40,
                 offset: const Offset(0, 20),
               ),
@@ -797,10 +702,7 @@ class _GlassIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _GlassIconButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _GlassIconButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -814,20 +716,12 @@ class _GlassIconButton extends StatelessWidget {
           height: 49,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(17),
-            color: Colors.white.withValues(
-              alpha: 0.055,
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(
-                alpha: 0.10,
-              ),
-            ),
+            color: Colors.white.withValues(alpha: 0.055),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
           ),
           child: Icon(
             icon,
-            color: Colors.white.withValues(
-              alpha: 0.82,
-            ),
+            color: Colors.white.withValues(alpha: 0.82),
             size: 21,
           ),
         ),
@@ -840,50 +734,29 @@ class _MissionBadge extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _MissionBadge({
-    required this.icon,
-    required this.label,
-  });
+  const _MissionBadge({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: Colors.white.withValues(
-            alpha: 0.035,
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: 0.065,
-            ),
-          ),
+          color: Colors.white.withValues(alpha: 0.035),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.065)),
         ),
         child: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: Colors.white.withValues(
-                alpha: 0.60,
-              ),
-              size: 14,
-            ),
+            Icon(icon, color: Colors.white.withValues(alpha: 0.60), size: 14),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withValues(
-                    alpha: 0.66,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.66),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -922,12 +795,10 @@ class _LearningActivityCard extends StatefulWidget {
   });
 
   @override
-  State<_LearningActivityCard> createState() =>
-      _LearningActivityCardState();
+  State<_LearningActivityCard> createState() => _LearningActivityCardState();
 }
 
-class _LearningActivityCardState
-    extends State<_LearningActivityCard> {
+class _LearningActivityCardState extends State<_LearningActivityCard> {
   bool _isPressed = false;
 
   @override
@@ -950,19 +821,11 @@ class _LearningActivityCardState
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(25),
-              color: Colors.white.withValues(
-                alpha: 0.045,
-              ),
-              border: Border.all(
-                color: Colors.white.withValues(
-                  alpha: 0.085,
-                ),
-              ),
+              color: Colors.white.withValues(alpha: 0.045),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.085)),
               boxShadow: [
                 BoxShadow(
-                  color: activity.color.withValues(
-                    alpha: 0.055,
-                  ),
+                  color: activity.color.withValues(alpha: 0.055),
                   blurRadius: 25,
                   spreadRadius: -5,
                 ),
@@ -982,24 +845,16 @@ class _LearningActivityCardState
                 Padding(
                   padding: const EdgeInsets.all(17),
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(15),
-                          color:
-                              activity.color.withValues(
-                            alpha: 0.12,
-                          ),
+                          borderRadius: BorderRadius.circular(15),
+                          color: activity.color.withValues(alpha: 0.12),
                           border: Border.all(
-                            color:
-                                activity.color.withValues(
-                              alpha: 0.13,
-                            ),
+                            color: activity.color.withValues(alpha: 0.13),
                           ),
                         ),
                         child: Icon(
@@ -1022,9 +877,7 @@ class _LearningActivityCardState
                       Text(
                         activity.subtitle,
                         style: TextStyle(
-                          color: Colors.white.withValues(
-                            alpha: 0.43,
-                          ),
+                          color: Colors.white.withValues(alpha: 0.43),
                           fontSize: 11,
                         ),
                       ),
@@ -1039,11 +892,7 @@ class _LearningActivityCardState
                               color: activity.color,
                               boxShadow: [
                                 BoxShadow(
-                                  color:
-                                      activity.color
-                                          .withValues(
-                                    alpha: 0.45,
-                                  ),
+                                  color: activity.color.withValues(alpha: 0.45),
                                   blurRadius: 8,
                                 ),
                               ],
@@ -1053,22 +902,15 @@ class _LearningActivityCardState
                           Text(
                             'Explore',
                             style: TextStyle(
-                              color: Colors.white
-                                  .withValues(
-                                alpha: 0.52,
-                              ),
+                              color: Colors.white.withValues(alpha: 0.52),
                               fontSize: 10,
-                              fontWeight:
-                                  FontWeight.w700,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const Spacer(),
                           Icon(
                             Icons.arrow_forward_rounded,
-                            color: Colors.white
-                                .withValues(
-                              alpha: 0.35,
-                            ),
+                            color: Colors.white.withValues(alpha: 0.35),
                             size: 15,
                           ),
                         ],

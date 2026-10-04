@@ -2,18 +2,21 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../features/learning/sessions/conversation_session_screen.dart';
+import '../../features/lessons/engine/lesson_engine.dart';
+import '../../features/lessons/lesson_launcher.dart';
+import '../../features/lessons/models/lesson_models.dart';
 import '../../models/learning_profile.dart';
 import '../../services/learning/learning_profile_service.dart';
 import '../../services/progress_service.dart';
+import '../../services/voice/voice_output_provider.dart';
 import '../../theme/app_colors.dart';
 import '../tutors/mia/mia_screen.dart';
+import '../tutors/mia/widgets/mia_presence.dart';
 import 'widgets/quick_actions_section.dart';
-import 'widgets/tutor_card.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({
-    super.key,
-  });
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -25,6 +28,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   LearningProfile? _profile;
   ProgressSnapshot? _progress;
+  LessonContext? _lessonContext;
+  LessonChoice? _lessonChoice;
   bool _isLoading = true;
 
   @override
@@ -41,11 +46,15 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadHomeData() async {
     try {
-      final LearningProfile profile =
-          await LearningProfileService.getProfile();
-
-      final ProgressSnapshot progress =
-          await ProgressService.getSnapshot();
+      final List<Object?> loaded = await Future.wait<Object?>(<Future<Object?>>[
+        LearningProfileService.getProfile(),
+        ProgressService.getSnapshot(),
+        LessonContext.load(),
+      ]);
+      final LearningProfile profile = loaded[0]! as LearningProfile;
+      final ProgressSnapshot progress = loaded[1]! as ProgressSnapshot;
+      final LessonContext lessonContext = loaded[2]! as LessonContext;
+      final LessonChoice lessonChoice = lessonContext.recommend();
 
       if (!mounted) {
         return;
@@ -54,6 +63,8 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _profile = profile;
         _progress = progress;
+        _lessonContext = lessonContext;
+        _lessonChoice = lessonChoice;
         _isLoading = false;
       });
     } catch (_) {
@@ -68,11 +79,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _openMia() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const MiaScreen(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const MiaScreen()));
 
     if (!mounted) {
       return;
@@ -81,63 +90,58 @@ class _HomeScreenState extends State<HomeScreen>
     await _loadHomeData();
   }
 
-  void _handleLearningAction(QuickActionData action) {
+  Future<void> _handleLearningAction(QuickActionData action) async {
     switch (action.title) {
       case 'Conversation':
-        _openMia();
+        await _openMia();
         return;
-
-      default:
-        _showComingSoon(action);
+      case 'Vocabulary':
+        await _openLesson(LessonSkill.vocabulary);
+        return;
+      case 'Grammar':
+        await _openLesson(LessonSkill.grammar);
+        return;
+      case 'Reading':
+        await _openLesson(LessonSkill.reading);
+        return;
+      case 'Listening':
+        await _openLesson(LessonSkill.listening);
+        return;
+      case 'Writing':
+        final LearningProfile? profile = _profile;
+        if (profile == null) return;
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => ConversationSessionScreen(profile: profile),
+          ),
+        );
+        if (mounted) await _loadHomeData();
+        return;
     }
   }
 
-  void _showComingSoon(QuickActionData action) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(18, 0, 18, 20),
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(
-              color: AppColors.glassBorderStrong,
-            ),
-          ),
-          content: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: action.gradient,
-                  ),
-                ),
-                child: Icon(
-                  action.icon,
-                  color: Colors.white,
-                  size: 17,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '${action.title} is coming to your Learning Hub.',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+  Future<void> _openLesson(LessonSkill skill) async {
+    await LessonLauncher.openSkill(context, skill);
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _openRecommendedLesson() async {
+    final LessonContext? data = _lessonContext;
+    final LessonChoice? choice = _lessonChoice;
+    if (data == null || choice == null) {
+      await LessonLauncher.openRecommended(context);
+    } else {
+      await LessonLauncher.openLesson(context, choice, data);
+    }
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _speakMiaGreeting() async {
+    final String name = _profile?.name.trim() ?? '';
+    final String greeting = name.isEmpty
+        ? "Hi, I'm Mia. Ready to work on your English together?"
+        : "Hi, $name. Ready to work on your English together?";
+    await MiaVoice.provider.speak(greeting, style: MiaSpeechStyle.warm);
   }
 
   @override
@@ -158,18 +162,14 @@ class _HomeScreenState extends State<HomeScreen>
             child: AnimatedBuilder(
               animation: _animationController,
               builder: (context, child) {
-                final double animationProgress =
-                    Curves.easeOutCubic.transform(
+                final double animationProgress = Curves.easeOutCubic.transform(
                   _animationController.value,
                 );
 
                 return Opacity(
                   opacity: animationProgress,
                   child: Transform.translate(
-                    offset: Offset(
-                      0,
-                      28 * (1 - animationProgress),
-                    ),
+                    offset: Offset(0, 28 * (1 - animationProgress)),
                     child: child,
                   ),
                 );
@@ -182,45 +182,30 @@ class _HomeScreenState extends State<HomeScreen>
                   physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    18,
-                    20,
-                    48,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 48),
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeader(),
                       const SizedBox(height: 34),
                       _buildHeroGreeting(),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 22),
+                      _buildMiaCompanion(),
+                      const SizedBox(height: 24),
                       _buildDailyIntelligence(),
                       const SizedBox(height: 22),
                       _buildStats(),
                       const SizedBox(height: 34),
                       _buildSectionHeader(
-                        eyebrow: 'YOUR AI TUTOR',
-                        title: 'Meet Mia',
-                        subtitle:
-                            'Your personal English companion.',
-                      ),
-                      const SizedBox(height: 14),
-                      const TutorCard(),
-                      const SizedBox(height: 34),
-                      _buildSectionHeader(
                         eyebrow: 'YOUR EVOLUTION',
                         title: 'Learning progress',
-                        subtitle:
-                            'Every session moves you forward.',
+                        subtitle: 'Every session moves you forward.',
                       ),
                       const SizedBox(height: 14),
                       _buildEvolutionCard(),
                       const SizedBox(height: 34),
                       QuickActionsSection(
-                        onActionSelected:
-                            _handleLearningAction,
+                        onActionSelected: _handleLearningAction,
                       ),
                     ],
                   ),
@@ -245,9 +230,7 @@ class _HomeScreenState extends State<HomeScreen>
         opacity: _isLoading ? 1 : 0,
         duration: const Duration(milliseconds: 300),
         child: Container(
-          color: AppColors.background.withValues(
-            alpha: 0.28,
-          ),
+          color: AppColors.background.withValues(alpha: 0.28),
           child: const Center(
             child: SizedBox(
               width: 24,
@@ -272,8 +255,7 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ShaderMask(
                 shaderCallback: (bounds) {
@@ -299,9 +281,7 @@ class _HomeScreenState extends State<HomeScreen>
               Text(
                 'YOUR PERSONAL AI LANGUAGE ACADEMY',
                 style: TextStyle(
-                  color: AppColors.textSecondary.withValues(
-                    alpha: 0.62,
-                  ),
+                  color: AppColors.textSecondary.withValues(alpha: 0.62),
                   fontSize: 8.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.9,
@@ -319,10 +299,7 @@ class _HomeScreenState extends State<HomeScreen>
     return ClipRRect(
       borderRadius: BorderRadius.circular(19),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
-        ),
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           width: 52,
           height: 52,
@@ -336,14 +313,10 @@ class _HomeScreenState extends State<HomeScreen>
                 Colors.white.withValues(alpha: 0.035),
               ],
             ),
-            border: Border.all(
-              color: AppColors.glassBorder,
-            ),
+            border: Border.all(color: AppColors.glassBorder),
             boxShadow: [
               BoxShadow(
-                color: AppColors.glow.withValues(
-                  alpha: 0.12,
-                ),
+                color: AppColors.glow.withValues(alpha: 0.12),
                 blurRadius: 28,
                 spreadRadius: 1,
               ),
@@ -364,12 +337,10 @@ class _HomeScreenState extends State<HomeScreen>
   // ===========================================================================
 
   Widget _buildHeroGreeting() {
-    final String name =
-        _profile?.name.trim() ?? '';
+    final String name = _profile?.name.trim() ?? '';
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -382,9 +353,7 @@ class _HomeScreenState extends State<HomeScreen>
                 color: AppColors.primaryBright,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(
-                      alpha: 0.65,
-                    ),
+                    color: AppColors.primary.withValues(alpha: 0.65),
                     blurRadius: 12,
                   ),
                 ],
@@ -394,22 +363,14 @@ class _HomeScreenState extends State<HomeScreen>
             Text(
               'WELCOME BACK',
               style: TextStyle(
-                color:
-                    AppColors.primaryBright.withValues(
-                  alpha: 0.88,
-                ),
+                color: AppColors.primaryBright.withValues(alpha: 0.88),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 2.4,
               ),
             ),
             const SizedBox(width: 6),
-            const Text(
-              '👋',
-              style: TextStyle(
-                fontSize: 13,
-              ),
-            ),
+            const Text('👋', style: TextStyle(fontSize: 13)),
           ],
         ),
         const SizedBox(height: 11),
@@ -430,9 +391,7 @@ class _HomeScreenState extends State<HomeScreen>
           'Your journey continues today. '
           'Let’s make every minute count.',
           style: TextStyle(
-            color: AppColors.textSecondary.withValues(
-              alpha: 0.78,
-            ),
+            color: AppColors.textSecondary.withValues(alpha: 0.78),
             fontSize: 14,
             height: 1.55,
           ),
@@ -441,33 +400,125 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildMiaCompanion() {
+    final LessonChoice? choice = _lessonChoice;
+    final String title =
+        choice?.lesson.title ??
+        (_isLoading
+            ? 'Preparing your next lesson'
+            : 'Recommendation unavailable');
+    final String reason =
+        choice?.reason ??
+        (_isLoading
+            ? 'Mia is checking your learning history.'
+            : 'Refresh to try again.');
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.glassBorderStrong),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const MiaPresence(
+                size: 66,
+                showLabel: false,
+                state: MiaPresenceState.encouraging,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'MIA’S RECOMMENDATION',
+                      style: TextStyle(
+                        color: AppColors.primaryBright,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      reason,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: <Widget>[
+              IconButton(
+                onPressed: _speakMiaGreeting,
+                tooltip: 'Hear Mia',
+                icon: const Icon(Icons.volume_up_rounded),
+              ),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: choice == null
+                    ? _loadHomeData
+                    : _openRecommendedLesson,
+                icon: Icon(
+                  choice == null
+                      ? Icons.refresh_rounded
+                      : Icons.arrow_forward_rounded,
+                ),
+                label: Text(choice == null ? 'Refresh' : 'Start lesson'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ===========================================================================
   // DAILY INTELLIGENCE
   // ===========================================================================
 
   Widget _buildDailyIntelligence() {
-    final ProgressSnapshot progress =
-        _currentProgress;
+    final ProgressSnapshot progress = _currentProgress;
 
-    final bool goalComplete =
-        progress.isDailyGoalComplete;
+    final bool goalComplete = progress.isDailyGoalComplete;
 
-    final int remaining =
-        progress.remainingDailyGoal;
+    final int remaining = progress.remainingDailyGoal;
 
     final String goalDescription = goalComplete
         ? 'Your daily goal is complete. Keep the momentum going.'
         : remaining == 1
-            ? 'Only 1 minute left to complete today’s goal.'
-            : '$remaining minutes left to complete today’s goal.';
+        ? 'Only 1 minute left to complete today’s goal.'
+        : '$remaining minutes left to complete today’s goal.';
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(32),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 26,
-          sigmaY: 26,
-        ),
+        filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
         child: Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
@@ -476,25 +527,15 @@ class _HomeScreenState extends State<HomeScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primary.withValues(
-                  alpha: 0.14,
-                ),
-                AppColors.secondary.withValues(
-                  alpha: 0.075,
-                ),
-                Colors.white.withValues(
-                  alpha: 0.035,
-                ),
+                AppColors.primary.withValues(alpha: 0.14),
+                AppColors.secondary.withValues(alpha: 0.075),
+                Colors.white.withValues(alpha: 0.035),
               ],
             ),
-            border: Border.all(
-              color: AppColors.glassBorderStrong,
-            ),
+            border: Border.all(color: AppColors.glassBorderStrong),
             boxShadow: [
               BoxShadow(
-                color: AppColors.glow.withValues(
-                  alpha: 0.13,
-                ),
+                color: AppColors.glow.withValues(alpha: 0.13),
                 blurRadius: 48,
                 spreadRadius: -7,
               ),
@@ -506,8 +547,7 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -515,15 +555,12 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'DAILY INTELLIGENCE',
                           style: TextStyle(
-                            color: Colors.white.withValues(
-                              alpha: 0.52,
-                            ),
+                            color: Colors.white.withValues(alpha: 0.52),
                             fontSize: 8.5,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.8,
@@ -558,10 +595,7 @@ class _HomeScreenState extends State<HomeScreen>
               Text(
                 goalDescription,
                 style: TextStyle(
-                  color:
-                      AppColors.textSecondary.withValues(
-                    alpha: 0.76,
-                  ),
+                  color: AppColors.textSecondary.withValues(alpha: 0.76),
                   fontSize: 13,
                   height: 1.48,
                 ),
@@ -571,13 +605,12 @@ class _HomeScreenState extends State<HomeScreen>
                 children: [
                   _InfoPill(
                     icon: Icons.schedule_rounded,
-                    label:
-                        '${progress.dailyGoal} min',
+                    label: '${progress.dailyGoal} min',
                   ),
                   const SizedBox(width: 8),
                   const _InfoPill(
-                    icon: Icons.bolt_rounded,
-                    label: '+40 XP',
+                    icon: Icons.edit_note_rounded,
+                    label: 'Practice',
                   ),
                   const SizedBox(width: 8),
                   const _InfoPill(
@@ -604,16 +637,11 @@ class _HomeScreenState extends State<HomeScreen>
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary,
-            AppColors.secondary,
-          ],
+          colors: [AppColors.primary, AppColors.secondary],
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(
-              alpha: 0.28,
-            ),
+            color: AppColors.primary.withValues(alpha: 0.28),
             blurRadius: 26,
             spreadRadius: -2,
           ),
@@ -629,23 +657,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildAdaptiveBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: AppColors.success.withValues(
-          alpha: 0.09,
-        ),
-        border: Border.all(
-          color: AppColors.success.withValues(
-            alpha: 0.18,
-          ),
-        ),
+        color: AppColors.success.withValues(alpha: 0.09),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.18)),
       ),
       child: const Text(
-        'ADAPTIVE',
+        'GUIDED',
         style: TextStyle(
           color: AppColors.success,
           fontSize: 8,
@@ -661,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen>
       width: double.infinity,
       height: 54,
       child: FilledButton(
-        onPressed: _openMia,
+        onPressed: _openRecommendedLesson,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.textPrimary,
           foregroundColor: AppColors.textOnPrimary,
@@ -671,21 +690,19 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         child: const Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Begin today’s session',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+            Flexible(
+              child: Text(
+                'Start recommended lesson',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
               ),
             ),
             SizedBox(width: 9),
-            Icon(
-              Icons.arrow_forward_rounded,
-              size: 18,
-            ),
+            Icon(Icons.arrow_forward_rounded, size: 18),
           ],
         ),
       ),
@@ -714,8 +731,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildStats() {
-    final ProgressSnapshot progress =
-        _currentProgress;
+    final ProgressSnapshot progress = _currentProgress;
 
     return Row(
       children: [
@@ -759,15 +775,12 @@ class _HomeScreenState extends State<HomeScreen>
     required String subtitle,
   }) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           eyebrow,
           style: TextStyle(
-            color: AppColors.primary.withValues(
-              alpha: 0.72,
-            ),
+            color: AppColors.primary.withValues(alpha: 0.72),
             fontSize: 9,
             fontWeight: FontWeight.w900,
             letterSpacing: 2.1,
@@ -787,9 +800,7 @@ class _HomeScreenState extends State<HomeScreen>
         Text(
           subtitle,
           style: TextStyle(
-            color: AppColors.textSecondary.withValues(
-              alpha: 0.68,
-            ),
+            color: AppColors.textSecondary.withValues(alpha: 0.68),
             fontSize: 13,
           ),
         ),
@@ -802,31 +813,23 @@ class _HomeScreenState extends State<HomeScreen>
   // ===========================================================================
 
   Widget _buildEvolutionCard() {
-    final ProgressSnapshot progress =
-        _currentProgress;
+    final ProgressSnapshot progress = _currentProgress;
 
-    final double evolutionProgress =
-        _calculateEvolutionProgress(
+    final double evolutionProgress = _calculateEvolutionProgress(
       progress.level,
       progress.averageSkill,
     );
 
-    final String currentLevel =
-        _levelLabel(progress.level);
+    final String currentLevel = _levelLabel(progress.level);
 
-    final String nextLevel =
-        _nextLevelLabel(progress.level);
+    final String nextLevel = _nextLevelLabel(progress.level);
 
-    final int percentage =
-        (evolutionProgress * 100).round();
+    final int percentage = (evolutionProgress * 100).round();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 20,
-          sigmaY: 20,
-        ),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
@@ -835,17 +838,11 @@ class _HomeScreenState extends State<HomeScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withValues(
-                  alpha: 0.065,
-                ),
-                Colors.white.withValues(
-                  alpha: 0.025,
-                ),
+                Colors.white.withValues(alpha: 0.065),
+                Colors.white.withValues(alpha: 0.025),
               ],
             ),
-            border: Border.all(
-              color: AppColors.glassBorder,
-            ),
+            border: Border.all(color: AppColors.glassBorder),
             boxShadow: const [
               BoxShadow(
                 color: AppColors.shadow,
@@ -855,8 +852,7 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -864,14 +860,12 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'English Evolution',
                           style: TextStyle(
-                            color:
-                                AppColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                           ),
@@ -880,8 +874,7 @@ class _HomeScreenState extends State<HomeScreen>
                         Text(
                           'Your journey from A1 to C2',
                           style: TextStyle(
-                            color:
-                                AppColors.textSecondary,
+                            color: AppColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -899,23 +892,17 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
               const SizedBox(height: 24),
-              _buildEvolutionProgress(
-                progress: evolutionProgress,
-              ),
+              _buildEvolutionProgress(progress: evolutionProgress),
               const SizedBox(height: 11),
               Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     nextLevel.isEmpty
                         ? 'C2 mastered'
                         : 'Progress toward $nextLevel',
                     style: TextStyle(
-                      color: AppColors.textSecondary
-                          .withValues(
-                        alpha: 0.68,
-                      ),
+                      color: AppColors.textSecondary.withValues(alpha: 0.68),
                       fontSize: 11,
                     ),
                   ),
@@ -936,19 +923,12 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  double _calculateEvolutionProgress(
-    int level,
-    double averageSkill,
-  ) {
-    final double levelProgress =
-        (level.clamp(1, 6) - 1) / 5;
+  double _calculateEvolutionProgress(int level, double averageSkill) {
+    final double levelProgress = (level.clamp(1, 6) - 1) / 5;
 
-    final double skillProgress =
-        averageSkill.clamp(0.0, 1.0);
+    final double skillProgress = averageSkill.clamp(0.0, 1.0);
 
-    final double value =
-        (levelProgress * 0.7) +
-            (skillProgress * 0.3);
+    final double value = (levelProgress * 0.7) + (skillProgress * 0.3);
 
     return value.clamp(0.0, 1.0);
   }
@@ -997,14 +977,8 @@ class _HomeScreenState extends State<HomeScreen>
       height: 48,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: AppColors.primary.withValues(
-          alpha: 0.09,
-        ),
-        border: Border.all(
-          color: AppColors.primary.withValues(
-            alpha: 0.17,
-          ),
-        ),
+        color: AppColors.primary.withValues(alpha: 0.09),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.17)),
       ),
       child: const Icon(
         Icons.auto_graph_rounded,
@@ -1014,9 +988,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildEvolutionProgress({
-    required double progress,
-  }) {
+  Widget _buildEvolutionProgress({required double progress}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Stack(
@@ -1024,9 +996,7 @@ class _HomeScreenState extends State<HomeScreen>
           Container(
             height: 8,
             width: double.infinity,
-            color: Colors.white.withValues(
-              alpha: 0.07,
-            ),
+            color: Colors.white.withValues(alpha: 0.07),
           ),
           FractionallySizedBox(
             widthFactor: progress,
@@ -1034,19 +1004,12 @@ class _HomeScreenState extends State<HomeScreen>
               height: 8,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primaryBright,
-                  ],
+                  colors: [AppColors.primary, AppColors.primaryBright],
                 ),
-                borderRadius:
-                    BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary
-                        .withValues(
-                      alpha: 0.45,
-                    ),
+                    color: AppColors.primary.withValues(alpha: 0.45),
                     blurRadius: 12,
                   ),
                 ],
@@ -1063,8 +1026,7 @@ class _HomeScreenState extends State<HomeScreen>
 // AMBIENT BACKGROUND
 // =============================================================================
 
-class _HomeAmbientBackground
-    extends StatelessWidget {
+class _HomeAmbientBackground extends StatelessWidget {
   const _HomeAmbientBackground();
 
   @override
@@ -1074,26 +1036,17 @@ class _HomeAmbientBackground
         Positioned(
           top: -170,
           right: -120,
-          child: _AmbientGlow(
-            color: AppColors.primary,
-            size: 380,
-          ),
+          child: _AmbientGlow(color: AppColors.primary, size: 380),
         ),
         Positioned(
           top: 300,
           left: -180,
-          child: _AmbientGlow(
-            color: AppColors.secondary,
-            size: 390,
-          ),
+          child: _AmbientGlow(color: AppColors.secondary, size: 390),
         ),
         Positioned(
           bottom: -180,
           right: -100,
-          child: _AmbientGlow(
-            color: AppColors.electricBlue,
-            size: 330,
-          ),
+          child: _AmbientGlow(color: AppColors.electricBlue, size: 330),
         ),
       ],
     );
@@ -1101,10 +1054,7 @@ class _HomeAmbientBackground
 }
 
 class _AmbientGlow extends StatelessWidget {
-  const _AmbientGlow({
-    required this.color,
-    required this.size,
-  });
+  const _AmbientGlow({required this.color, required this.size});
 
   final Color color;
   final double size;
@@ -1112,18 +1062,13 @@ class _AmbientGlow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 85,
-        sigmaY: 85,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 85, sigmaY: 85),
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color.withValues(
-            alpha: 0.12,
-          ),
+          color: color.withValues(alpha: 0.12),
         ),
       ),
     );
@@ -1135,10 +1080,7 @@ class _AmbientGlow extends StatelessWidget {
 // =============================================================================
 
 class _InfoPill extends StatelessWidget {
-  const _InfoPill({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoPill({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1147,40 +1089,23 @@ class _InfoPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius:
-              BorderRadius.circular(14),
-          color: Colors.white.withValues(
-            alpha: 0.045,
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: 0.065,
-            ),
-          ),
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.white.withValues(alpha: 0.045),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.065)),
         ),
         child: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: AppColors.textSecondary,
-            ),
+            Icon(icon, size: 14, color: AppColors.textSecondary),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
                 label,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color:
-                      AppColors.textSecondary,
+                  color: AppColors.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1213,46 +1138,26 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(23),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 16,
-          sigmaY: 16,
-        ),
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(
-            vertical: 18,
-            horizontal: 8,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
           decoration: BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(23),
+            borderRadius: BorderRadius.circular(23),
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.white.withValues(
-                  alpha: 0.065,
-                ),
-                Colors.white.withValues(
-                  alpha: 0.025,
-                ),
+                Colors.white.withValues(alpha: 0.065),
+                Colors.white.withValues(alpha: 0.025),
               ],
             ),
-            border: Border.all(
-              color: AppColors.glassBorder,
-            ),
+            border: Border.all(color: AppColors.glassBorder),
           ),
           child: Column(
             children: [
-              Text(
-                icon,
-                style: const TextStyle(
-                  fontSize: 21,
-                ),
-              ),
+              Text(icon, style: const TextStyle(fontSize: 21)),
               const SizedBox(height: 7),
               Text(
                 value,
@@ -1266,10 +1171,7 @@ class _StatCard extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  color: AppColors.textSecondary
-                      .withValues(
-                    alpha: 0.62,
-                  ),
+                  color: AppColors.textSecondary.withValues(alpha: 0.62),
                   fontSize: 8.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,

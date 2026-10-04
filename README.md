@@ -1,15 +1,49 @@
 # 🌍 Eloqia AI
 
-## The Future of Personalized English Learning Powered by Artificial Intelligence
+## Personalized English Learning
 
-**An AI-powered language learning platform designed to make English learning more natural, interactive, and personalized.**
+Eloqia AI is a Flutter language-learning app with locally authored lessons,
+adaptive recommendations, progress tracking, and Mia as its tutor presence.
 
 ## 📌 Project Information
 
 **Creator:** Evan Tillay  
 **Project Started:** 28 July 2026  
-**Current Version:** v0.1 — Foundation  
-**Status:** 🚧 In Development
+**Current Version:** Mia Experience 4.0  
+**Status:** In development
+
+## Current Voice Integration Status
+
+The project contains a FastAPI/LiveKit voice-session path, an OpenAI Realtime
+agent, and a Flutter LiveKit room screen with microphone consent. The live
+conversation is **CONFIGURATION REQUIRED**: secure sign-in and backend/vendor
+configuration are not available in this workspace. The Talk screen disables
+live-session startup until its backend URL and sign-in provider are supplied.
+Mia's current spoken output uses the device/browser text-to-speech engine; its
+voice, quality, and accent vary by device.
+
+The live voice path does not persist transcripts, learning memory, session
+scores, or XP. API keys remain server-side. See
+[`backend/README.md`](backend/README.md) for setup requirements.
+
+## Current Local Learning Experience
+
+The app includes 21 grammar, vocabulary, reading, and listening lessons at
+selected CEFR levels from A1 to C1. Listening passages use device-generated
+speech, not recorded native-speaker audio. Exercises provide deterministic
+answer-specific feedback, retries, per-answer XP, combos, achievements, and
+local progress/memory updates. Mia's writing practice uses authored prompts
+and local word/sentence counts; it does not score language quality or persist
+responses. The optional placement estimate is not a certification.
+
+time voice remains **CONFIGURATION REQUIRED** until OIDC, LiveKit, OpenAI, and
+Learning recommendations are deterministic rules over the learner's profile,
+assessment, saved memories, progress, and completed sessions. Learning DNA is
+a transparent summary, not an AI diagnosis. The first launch presents Mia on a
+standalone welcome screen; her static portrait does not lip-sync. See
+[`docs/MIA_EXPERIENCE_4_AUDIT.md`](docs/MIA_EXPERIENCE_4_AUDIT.md) for the
+current architecture, provider comparison, security boundaries, and unverified
+integrations.
 
 # 🚀 Project Overview
 
@@ -56,7 +90,11 @@ The final goal is to create a complete AI-powered English learning ecosystem.
 
 ---
 
-# 🤖 AI Teacher System
+# 🤖 Tutor Concepts
+
+Only Mia is represented in the current app. Sophie, James, and Cooper below
+are roadmap concepts, not available tutors. No regional accent is guaranteed
+by the current device text-to-speech voice.
 
 Eloqia AI is built around four unique AI teachers.
 
@@ -83,17 +121,12 @@ The learner chooses the AI teacher that best matches their preferred learning ex
 
 ---
 
-# 🌴 Mia — The Encouraging Companion
+# Mia — The Encouraging Tutor
 
-## 📍 Origin
-
-**California, United States 🇺🇸**
-
-Mia represents the relaxed, positive, and innovative culture of the American West Coast.
-
-## 🗣️ Accent
-
-**Californian American English**
+Mia is the tutor currently represented in the application. Her spoken output
+uses the best available US English device voice. A California-specific accent
+is not verified or guaranteed; the current Chrome runtime selects Microsoft
+Zira from the installed US voices.
 
 Her accent is modern, clear, and natural, making it comfortable for international learners.
 
@@ -117,7 +150,8 @@ Mia is:
 
 Mia believes that confidence is the foundation of successful language learning.
 
-**Supported Levels: A1 → C2**
+The current authored lesson catalog covers selected A1-C1 topics. This does not
+claim full CEFR coverage.
 
 ---
 
@@ -259,38 +293,25 @@ Future features:
 
 * Natural conversations with AI teachers
 * Context-aware responses
-* Personalized corrections
+Live AI voice conversations and remote speech recognition require secure
+backend, identity, and vendor configuration. Local Mia TTS and guided writing
+are available now.
 * Vocabulary recommendations
-
----
-
 ## 📈 Learning Progress System
 
-Future features:
-
-* User profiles
-* Learning statistics
-* Progress tracking
-* Personalized goals
-* Achievement system
-
----
+Local profiles, learning statistics, progress tracking, recommendations, and
+session-derived achievements are available. Cloud synchronization and expanded
+milestone systems remain planned.
 
 ## 🎤 Speaking Improvement
 
-Future features:
-
-* Voice conversations
-* Pronunciation analysis
+Device text-to-speech is available. Pronunciation analysis and measured
+fluency evaluation are not implemented.
 * Speaking exercises
 * Fluency evaluation
 
----
-
-## 🌍 Immersive Learning Experience
-
-Future features:
-
+The current catalog contains authored interactive lessons. Dynamic scenarios,
+cultural discussion flows, and daily quests remain planned.
 * Real-world scenarios
 * Cultural discussions
 * Interactive lessons
@@ -830,6 +851,274 @@ Future versions will introduce:
 * Advanced AI memory
 
 * Premium subscription system
+
+* Multiple AI tutors
+
+* Complete adaptive AI language academy 🚀
+
+## v0.7.5 — Intelligent Learning Experience
+
+**Status:** Pre-1.0 Release 🚀
+
+Focus:
+
+* Transforming Eloqia into a complete personalized English learning experience
+
+* Expanding the application from a learning foundation into a multi-screen learning platform
+
+* Strengthening the connection between learner profile, learning experience and progression
+
+* Introducing a more immersive AI tutor experience with Mia
+
+* Building the foundation for real lessons, exercises and assessments
+
+* Improving the premium Liquid Glass experience across the application
+
+* Preparing Eloqia for its first complete V1.0 product release
+
+### Added
+
+* Expanded personalized onboarding experience
+
+* 15-step learner profile creation flow
+
+* Personalized learning preferences
+
+* Learning goals and secondary goals
+
+* Learning difficulties and strengths
+
+* Confidence level personalization
+
+* Speaking situation personalization
+
+* Learning preference personalization
+
+* Correction style personalization
+
+* Motivation and learning pace personalization
+
+* Learner interests personalization
+
+* Preferred AI tutor style personalization
+
+* CEFR English level selection from A1 to C2
+
+* Personalized learner profile persistence
+
+* Persistent application state
+
+* Persistent onboarding state
+
+* Persistent learning progression
+
+* XP and level progression system
+
+* Streak system
+
+* Daily learning goals
+
+* Learning statistics
+
+* Skill progression foundations
+
+* Progression snapshot system
+
+* Learning Memory foundations
+
+* Learning Hub experience
+
+* Conversation learning category
+
+* Vocabulary learning category
+
+* Grammar learning category
+
+* Listening learning category
+
+* Writing learning category
+
+* Reading learning category foundations
+
+* Academic learning foundations
+
+* Assessment experience foundations
+
+* Mia tutor experience
+
+* Personalized Mia experience foundations
+
+* Mia onboarding introduction
+
+* Mia contextual onboarding guidance
+
+* Premium onboarding completion experience
+
+* AppShell navigation architecture
+
+* Home experience connected to learner data
+
+* Personalized Home experience
+
+* Daily Intelligence experience
+
+* Personalized learning session foundations
+
+### Improved
+
+* Major upgrade to the overall application architecture
+
+* Stronger connection between LearningProfile and the application experience
+
+* Improved persistence and application state management
+
+* Improved onboarding reliability
+
+* Improved navigation architecture
+
+* Improved Home experience
+
+* Improved Learning Hub experience
+
+* Improved learner progression experience
+
+* Improved Mia personalization foundations
+
+* More immersive onboarding experience
+
+* Premium Liquid Glass interface
+
+* Advanced glass surfaces and layered depth
+
+* Ambient lighting effects
+
+* Dynamic gradients
+
+* Premium borders and visual hierarchy
+
+* Smooth page transitions
+
+* Improved animations and micro-interactions
+
+* Improved responsive layouts
+
+* Improved spacing and typography
+
+* More consistent visual language across the application
+
+* More immersive learning-oriented interface
+
+* Stronger connection between personalization, progression and learning
+
+* Improved application stability and code organization
+
+### Architecture
+
+* LearningProfile remains the central source of truth for learner personalization
+
+* PersistentAppController manages global persistent application state
+
+* Dedicated profile persistence architecture
+
+* Dedicated progression persistence architecture
+
+* Dedicated Learning Memory architecture
+
+* Modular Learning Hub architecture
+
+* Modular Mia tutor architecture
+
+* AppShell prepared as the primary application navigation layer
+
+* Separation between learner profile, progression, memory and learning experience responsibilities
+
+* Reusable premium UI components
+
+* Modular onboarding architecture
+
+* Learning experience architecture prepared for real adaptive learning
+
+* Storage architecture prepared for future cloud synchronization
+
+* Architecture prepared for future AI-powered learning systems
+
+* Architecture prepared for future advanced Mia intelligence
+
+### Documentation
+
+* Updated project documentation for the V0.7.5 architecture
+
+* Updated learner personalization documentation
+
+* Updated persistence architecture
+
+* Updated progression architecture
+
+* Updated Learning Hub architecture
+
+* Updated Mia architecture
+
+* Updated learning experience roadmap
+
+* Prepared project documentation for the transition toward V1.0
+
+* Clarified future AI learning and adaptive learning direction
+
+---
+
+## Future Versions
+
+Future versions will introduce:
+
+* Complete AI-powered learning engine
+
+* Real personalized lesson generation
+
+* Advanced adaptive learning
+
+* Complete Grammar learning experience
+
+* Complete Vocabulary learning experience
+
+* Complete Reading learning experience
+
+* Complete Listening learning experience
+
+* Advanced Writing experience
+
+* Advanced Speaking experience
+
+* Real-time AI conversations
+
+* Advanced AI-generated feedback
+
+* Intelligent mistake analysis
+
+* Adaptive difficulty
+
+* Advanced Learning Memory
+
+* Personalized learning recommendations
+
+* AI-generated learning paths
+
+* Mia becoming fully interactive and context-aware
+
+* Natural voice conversations with Mia
+
+* Advanced Mia emotional responses and expressions
+
+* Advanced AI tutor intelligence
+
+* Gamified learning progression
+
+* Achievements and challenges
+
+* Advanced analytics
+
+* Premium subscription system
+
+* Cloud synchronization
 
 * Multiple AI tutors
 

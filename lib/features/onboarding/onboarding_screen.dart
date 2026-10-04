@@ -3,13 +3,16 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../app/app_shell.dart';
 import '../../app/persistent_app_controller.dart';
 import '../../models/learning_profile.dart';
+import '../../services/learning/learning_profile_service.dart';
 import '../../theme/app_colors.dart';
-import '../home/home_screen.dart';
 import 'widgets/onboarding_background.dart';
 import 'widgets/onboarding_button.dart';
 import 'widgets/progress_indicator.dart';
+import 'assessment/level_assessment_screen.dart';
+import 'assessment/level_assessment_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -250,44 +253,111 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // ===========================================================================
 
   Future<void> _finishOnboarding() async {
-    if (!_canContinue || _isTransitioning) {
+    if (!_canContinue || _isTransitioning || !mounted) {
       return;
     }
 
     FocusScope.of(context).unfocus();
 
-    final bool completed =
-        await PersistentAppController.instance.completeOnboarding();
+    setState(() {
+      _isTransitioning = true;
+    });
 
-    if (!mounted || !completed) {
+    try {
+      // Save the complete learner profile before marking onboarding as done.
+      final LearningProfile? savedProfile =
+          await LearningProfileService.saveProfile(_profile);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (savedProfile == null) {
+        setState(() {
+          _isTransitioning = false;
+        });
+        _showSaveError();
+        return;
+      }
+
+      final bool completed = await PersistentAppController.instance
+          .completeOnboarding();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!completed) {
+        setState(() {
+          _isTransitioning = false;
+        });
+        _showSaveError();
+        return;
+      }
+
+      await _openCompletionExperience();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isTransitioning = false;
+      });
+      _showSaveError();
+    }
+  }
+
+  void _showSaveError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        backgroundColor: const Color(0xFF171A24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        content: const Row(
+          children: [
+            Icon(Icons.cloud_off_rounded, color: Colors.white70),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Eloqia could not save your profile. Please try again.',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openCompletionExperience() async {
+    if (!mounted) {
       return;
     }
 
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 1100),
-        reverseTransitionDuration: const Duration(milliseconds: 700),
+    setState(() {
+      _isTransitioning = false;
+    });
+
+    await Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 900),
         pageBuilder: (context, animation, secondaryAnimation) {
           return _OnboardingCompletionScreen(profile: _profile);
         },
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
-          final Animation<double> curvedAnimation = CurvedAnimation(
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final Animation<double> curved = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeInOutCubic,
+            curve: Curves.easeOutCubic,
           );
 
           return FadeTransition(
-            opacity: curvedAnimation,
+            opacity: curved,
             child: ScaleTransition(
-              scale: Tween<double>(
-                begin: 1.035,
-                end: 1.0,
-              ).animate(curvedAnimation),
+              scale: Tween<double>(begin: 0.985, end: 1.0).animate(curved),
               child: child,
             ),
           );
@@ -308,6 +378,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // =========================================================================
+            // ONBOARDING EXPERIENCE
+            // =========================================================================
             _buildAmbientGlow(),
             _buildSecondaryGlow(),
             _buildAtmosphericLight(),
@@ -335,9 +408,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
                   return Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: wide ? 1180 : 820,
-                      ),
+                      constraints: BoxConstraints(maxWidth: wide ? 1180 : 820),
                       child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: horizontalPadding,
@@ -355,9 +426,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   : 18,
                             ),
 
-                            Expanded(
-                              child: _buildPageViewport(),
-                            ),
+                            Expanded(child: _buildPageViewport()),
 
                             SizedBox(
                               height: veryCompact
@@ -421,14 +490,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       builder: (context, child) {
         final double rotation = _ambientController.value * math.pi * 2;
 
-        final double horizontalShift =
-            math.sin(rotation * 0.72) * 52.0;
+        final double horizontalShift = math.sin(rotation * 0.72) * 52.0;
 
-        final double verticalShift =
-            math.cos(rotation * 0.48) * 34.0;
+        final double verticalShift = math.cos(rotation * 0.48) * 34.0;
 
-        final double pulse =
-            0.96 + (math.sin(rotation) + 1.0) * 0.018;
+        final double pulse = 0.96 + (math.sin(rotation) + 1.0) * 0.018;
 
         return IgnorePointer(
           child: Center(
@@ -450,12 +516,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         AppColors.primary.withValues(alpha: 0.014),
                         Colors.transparent,
                       ],
-                      stops: const [
-                        0.0,
-                        0.32,
-                        0.62,
-                        1.0,
-                      ],
+                      stops: const [0.0, 0.32, 0.62, 1.0],
                     ),
                   ),
                 ),
@@ -471,18 +532,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
-        final double value = Curves.easeInOut.transform(
-          _pulseController.value,
-        );
+        final double value = Curves.easeInOut.transform(_pulseController.value);
 
         return IgnorePointer(
           child: Align(
             alignment: Alignment.bottomLeft,
             child: Transform.translate(
-              offset: Offset(
-                18.0 * value,
-                -20.0 * value,
-              ),
+              offset: Offset(18.0 * value, -20.0 * value),
               child: Container(
                 width: 460,
                 height: 460,
@@ -493,16 +549,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       AppColors.secondary.withValues(
                         alpha: 0.035 + (value * 0.018),
                       ),
-                      AppColors.primary.withValues(
-                        alpha: 0.012,
-                      ),
+                      AppColors.primary.withValues(alpha: 0.012),
                       Colors.transparent,
                     ],
-                    stops: const [
-                      0.0,
-                      0.48,
-                      1.0,
-                    ],
+                    stops: const [0.0, 0.48, 1.0],
                   ),
                 ),
               ),
@@ -531,11 +581,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     AppColors.secondary.withValues(alpha: 0.015),
                     Colors.transparent,
                   ],
-                  stops: const [
-                    0.0,
-                    0.42,
-                    1.0,
-                  ],
+                  stops: const [0.0, 0.42, 1.0],
                 ),
               ),
             ),
@@ -603,12 +649,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               Colors.black.withValues(alpha: 0.16),
               Colors.black.withValues(alpha: 0.32),
             ],
-            stops: const [
-              0.0,
-              0.56,
-              0.84,
-              1.0,
-            ],
+            stops: const [0.0, 0.56, 0.84, 1.0],
           ),
         ),
       ),
@@ -631,10 +672,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             _buildBackButton(),
 
             Expanded(
-              child: _buildBrandCenter(
-                progress: progress,
-                compact: compact,
-              ),
+              child: _buildBrandCenter(progress: progress, compact: compact),
             ),
 
             _buildPageCounter(),
@@ -644,10 +682,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildBrandCenter({
-    required double progress,
-    required bool compact,
-  }) {
+  Widget _buildBrandCenter({required double progress, required bool compact}) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -662,12 +697,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 Colors.white.withValues(alpha: 0.92),
                 AppColors.secondary,
               ],
-              stops: const [
-                0.0,
-                0.38,
-                0.58,
-                1.0,
-              ],
+              stops: const [0.0, 0.38, 0.58, 1.0],
             ).createShader(bounds);
           },
           child: const Text(
@@ -692,10 +722,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             child: Text(
               _currentPage == _totalPages - 1
                   ? 'FINAL STEP'
-                  : 'CRAFTING YOUR LEARNING PROFILE',
-              key: ValueKey<bool>(
-                _currentPage == _totalPages - 1,
-              ),
+                  : 'ACADEMIC LEARNING PROFILE · ELOQIA LAB',
+              key: ValueKey<bool>(_currentPage == _totalPages - 1),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.28),
                 fontSize: 7.5,
@@ -721,9 +749,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: Colors.white.withValues(alpha: 0.035),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.18),
@@ -740,10 +766,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.secondary,
-                    ],
+                    colors: [AppColors.primary, AppColors.secondary],
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -825,10 +848,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ignoring: _currentPage == 0,
           child: ClipOval(
             child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: 22,
-                sigmaY: 22,
-              ),
+              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -860,10 +880,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: IconButton(
                   onPressed: _previousPage,
                   tooltip: 'Back',
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    size: 18,
-                  ),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
                   color: Colors.white.withValues(alpha: 0.84),
                 ),
               ),
@@ -882,15 +899,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return _QuestionPage(
       controller: _contentController,
       icon: Icons.auto_awesome_rounded,
-      eyebrow: 'WELCOME TO ELOQIA',
-      title: 'Let’s build your\nEnglish journey.',
+      eyebrow: 'WELCOME · LEARNING LAB',
+      title: 'Let’s design your\nEnglish learning profile.',
       description:
-          'A few thoughtful questions will help Eloqia understand how you learn, what you want to achieve, and how your AI tutor should guide you.',
+          'A short academic-style profile helps Eloqia understand your goals, habits, strengths, challenges, and the kind of guidance that works best for you.',
       child: const _PremiumInfoCard(
         icon: Icons.psychology_alt_rounded,
-        title: 'Your experience will be uniquely yours.',
+        title: 'Your learning profile becomes your blueprint.',
         subtitle:
-            'There are no right or wrong answers. Choose what feels most like you.',
+            'Your answers will shape future lessons, practice, feedback, and Mia’s guidance. There are no right or wrong answers.',
       ),
     );
   }
@@ -906,7 +923,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       eyebrow: '01 · ABOUT YOU',
       title: 'What should we\ncall you?',
       description:
-          'Your name makes every interaction with Eloqia feel a little more personal.',
+          'Your name makes every interaction with Eloqia feel more personal.',
       child: _PremiumTextField(
         initialValue: _profile.name,
         onChanged: (value) {
@@ -956,6 +973,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Reach a truly advanced level',
             Icons.auto_awesome_rounded,
           ),
+          _ChoiceData(
+            'academic',
+            'Master academic English',
+            'Read, write and discuss complex ideas',
+            Icons.menu_book_rounded,
+          ),
+          _ChoiceData(
+            'career',
+            'Prepare for my future career',
+            'Build professional communication skills',
+            Icons.business_center_rounded,
+          ),
+          _ChoiceData(
+            'culture',
+            'Understand English culture',
+            'Follow media, ideas and conversations naturally',
+            Icons.language_rounded,
+          ),
         ],
         selected: _profile.primaryGoal,
         onSelected: (value) {
@@ -977,8 +1012,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.layers_rounded,
       eyebrow: '03 · MORE GOALS',
       title: 'What else would you\nlike to improve?',
-      description:
-          'Select everything that sounds useful to you.',
+      description: 'Select everything that sounds useful to you.',
       child: _MultiChoiceGrid(
         options: const [
           _ChoiceData(
@@ -1017,13 +1051,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Stop overthinking when speaking',
             Icons.favorite_rounded,
           ),
+          _ChoiceData(
+            'pronunciation_detail',
+            'Natural rhythm',
+            'Improve stress, rhythm and connected speech',
+            Icons.multitrack_audio_rounded,
+          ),
+          _ChoiceData(
+            'academic_writing',
+            'Academic writing',
+            'Build clearer, more structured arguments',
+            Icons.article_rounded,
+          ),
+          _ChoiceData(
+            'conversation',
+            'Conversation skills',
+            'React faster and keep conversations flowing',
+            Icons.forum_rounded,
+          ),
         ],
         selected: _profile.secondaryGoals,
         onToggle: (value) {
-          _toggleSelection(
-            _profile.secondaryGoals,
-            value,
-          );
+          _toggleSelection(_profile.secondaryGoals, value);
         },
       ),
     );
@@ -1039,8 +1088,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.insights_rounded,
       eyebrow: '04 · YOUR CHALLENGES',
       title: 'Where do you feel\nstuck?',
-      description:
-          'Be honest. This helps Eloqia know where to focus first.',
+      description: 'Be honest. This helps Eloqia know where to focus first.',
       child: _MultiChoiceGrid(
         options: const [
           _ChoiceData(
@@ -1079,13 +1127,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Fear of making mistakes',
             Icons.psychology_rounded,
           ),
+          _ChoiceData(
+            'speed',
+            'Thinking quickly',
+            'I need more time to formulate answers',
+            Icons.speed_rounded,
+          ),
+          _ChoiceData(
+            'advanced_grammar',
+            'Advanced grammar',
+            'Complex structures still feel inconsistent',
+            Icons.account_tree_rounded,
+          ),
+          _ChoiceData(
+            'naturalness',
+            'Sounding natural',
+            'I want my English to feel less translated',
+            Icons.auto_awesome_rounded,
+          ),
         ],
         selected: _profile.difficulties,
         onToggle: (value) {
-          _toggleSelection(
-            _profile.difficulties,
-            value,
-          );
+          _toggleSelection(_profile.difficulties, value);
         },
       ),
     );
@@ -1108,7 +1171,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           _ChoiceData(
             'speaking',
             'Speaking',
-            'I can express my ideas',
+            'I can express myself clearly',
             Icons.mic_none_rounded,
           ),
           _ChoiceData(
@@ -1141,13 +1204,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'People understand me easily',
             Icons.graphic_eq_rounded,
           ),
+          _ChoiceData(
+            'reading',
+            'Reading',
+            'I understand complex written English',
+            Icons.chrome_reader_mode_rounded,
+          ),
+          _ChoiceData(
+            'adaptability',
+            'Adaptability',
+            'I can switch between different contexts',
+            Icons.swap_horiz_rounded,
+          ),
+          _ChoiceData(
+            'curiosity',
+            'Curiosity',
+            'I enjoy discovering how English works',
+            Icons.lightbulb_rounded,
+          ),
         ],
         selected: _profile.strengths,
         onToggle: (value) {
-          _toggleSelection(
-            _profile.strengths,
-            value,
-          );
+          _toggleSelection(_profile.strengths, value);
         },
       ),
     );
@@ -1176,7 +1254,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           _ChoiceData(
             'developing',
             'I am getting there',
-            'I can communicate but still hesitate',
+            'I can communicate, but I still hesitate',
             Icons.trending_up_rounded,
           ),
           _ChoiceData(
@@ -1224,7 +1302,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           _ChoiceData(
             'travel',
-            'While travelling',
+            'While traveling',
             'Hotels, airports and cities',
             Icons.flight_takeoff_rounded,
           ),
@@ -1252,13 +1330,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Make English part of my life',
             Icons.wb_sunny_rounded,
           ),
+          _ChoiceData(
+            'presentations',
+            'Presentations',
+            'Explain ideas clearly in front of others',
+            Icons.slideshow_rounded,
+          ),
+          _ChoiceData(
+            'debates',
+            'Debates & discussions',
+            'Defend ideas and respond spontaneously',
+            Icons.forum_rounded,
+          ),
+          _ChoiceData(
+            'media',
+            'Media & content',
+            'Understand podcasts, videos and interviews',
+            Icons.ondemand_video_rounded,
+          ),
         ],
         selected: _profile.speakingSituations,
         onToggle: (value) {
-          _toggleSelection(
-            _profile.speakingSituations,
-            value,
-          );
+          _toggleSelection(_profile.speakingSituations, value);
         },
       ),
     );
@@ -1274,8 +1367,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.auto_awesome_rounded,
       eyebrow: '08 · HOW YOU LEARN',
       title: 'What makes learning\nclick for you?',
-      description:
-          'Select the learning experiences that keep you engaged.',
+      description: 'Select the learning experiences that keep you engaged.',
       child: _MultiChoiceGrid(
         options: const [
           _ChoiceData(
@@ -1314,13 +1406,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Surround myself with English',
             Icons.language_rounded,
           ),
+          _ChoiceData(
+            'audio',
+            'Audio-first learning',
+            'Learn through listening and speaking',
+            Icons.graphic_eq_rounded,
+          ),
+          _ChoiceData(
+            'structured',
+            'Structured lessons',
+            'Clear steps, rules and measurable progress',
+            Icons.view_timeline_rounded,
+          ),
+          _ChoiceData(
+            'discovery',
+            'Discovery',
+            'Figure things out through examples and clues',
+            Icons.manage_search_rounded,
+          ),
         ],
         selected: _profile.learningPreferences,
         onToggle: (value) {
-          _toggleSelection(
-            _profile.learningPreferences,
-            value,
-          );
+          _toggleSelection(_profile.learningPreferences, value);
         },
       ),
     );
@@ -1336,8 +1443,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.tune_rounded,
       eyebrow: '09 · FEEDBACK',
       title: 'How should your tutor\ncorrect you?',
-      description:
-          'Choose the balance between encouragement and precision.',
+      description: 'Choose the balance between encouragement and precision.',
       child: _SingleChoiceList(
         options: const [
           _ChoiceData(
@@ -1357,6 +1463,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Direct & precise',
             'Point out mistakes clearly so I improve faster',
             Icons.flash_on_rounded,
+          ),
+          _ChoiceData(
+            'deep',
+            'Deep correction',
+            'Explain the mistake, the rule and a better alternative',
+            Icons.science_rounded,
           ),
         ],
         selected: _profile.preferredCorrectionStyle,
@@ -1379,8 +1491,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.local_fire_department_rounded,
       eyebrow: '10 · YOUR WHY',
       title: 'Why does English\nmatter to you?',
-      description:
-          'Choose the reason that genuinely motivates you.',
+      description: 'Choose the reason that genuinely motivates you.',
       child: _SingleChoiceList(
         options: const [
           _ChoiceData(
@@ -1406,6 +1517,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'I love languages',
             'I want to become genuinely fluent',
             Icons.language_rounded,
+          ),
+          _ChoiceData(
+            'independence',
+            'I want more independence',
+            'Use English without relying on translations',
+            Icons.lock_open_rounded,
+          ),
+          _ChoiceData(
+            'challenge',
+            'I love a challenge',
+            'Push my limits and see how far I can go',
+            Icons.emoji_events_rounded,
           ),
         ],
         selected: _profile.motivation,
@@ -1449,6 +1572,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Intensive',
             'Push me and help me progress quickly',
             Icons.bolt_rounded,
+          ),
+          _ChoiceData(
+            'adaptive',
+            'Adaptive',
+            'Let Eloqia adjust the intensity to my performance',
+            Icons.auto_awesome_rounded,
           ),
         ],
         selected: _profile.learningPace,
@@ -1523,13 +1652,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Entrepreneurship & the future',
             Icons.business_rounded,
           ),
+          _ChoiceData(
+            'history',
+            'History',
+            'People, events and civilizations',
+            Icons.account_balance_rounded,
+          ),
+          _ChoiceData(
+            'art',
+            'Art & design',
+            'Creativity, visual culture and ideas',
+            Icons.palette_rounded,
+          ),
+          _ChoiceData(
+            'psychology',
+            'Psychology',
+            'People, behavior and the mind',
+            Icons.psychology_rounded,
+          ),
+          _ChoiceData(
+            'space',
+            'Space & exploration',
+            'The universe, missions and discovery',
+            Icons.public_rounded,
+          ),
         ],
         selected: _profile.interests,
         onToggle: (value) {
-          _toggleSelection(
-            _profile.interests,
-            value,
-          );
+          _toggleSelection(_profile.interests, value);
         },
       ),
     );
@@ -1545,8 +1695,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.psychology_rounded,
       eyebrow: '13 · YOUR AI TUTOR',
       title: 'What should your\ntutor feel like?',
-      description:
-          'Select the qualities you would love your AI tutor to have.',
+      description: 'Select the qualities you would love your AI tutor to have.',
       child: _SingleChoiceList(
         options: const [
           _ChoiceData(
@@ -1572,6 +1721,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Challenging & precise',
             'Push me toward a higher level',
             Icons.trending_up_rounded,
+          ),
+          _ChoiceData(
+            'academic',
+            'Academic & analytical',
+            'Explain the reasoning behind the language',
+            Icons.biotech_rounded,
+          ),
+          _ChoiceData(
+            'conversational',
+            'Natural & conversational',
+            'Talk with me like a real conversation partner',
+            Icons.forum_rounded,
           ),
         ],
         selected: _profile.preferredTutorStyle,
@@ -1649,11 +1810,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // BOTTOM CONTROLS
   // ===========================================================================
 
-  Widget _buildBottomControls({
-    required bool compact,
-  }) {
-    final bool isLastPage =
-        _currentPage == _totalPages - 1;
+  Widget _buildBottomControls({required bool compact}) {
+    final bool isLastPage = _currentPage == _totalPages - 1;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -1664,9 +1822,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             totalPages: _totalPages,
           ),
 
-          SizedBox(
-            height: compact ? 8 : 13,
-          ),
+          SizedBox(height: compact ? 8 : 13),
 
           OnboardingButton(
             label: _currentPage == 0
@@ -1680,9 +1836,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ? Icons.auto_awesome_rounded
                 : Icons.arrow_forward_rounded,
             enabled: _canContinue,
-            onPressed: _canContinue
-                ? _nextPage
-                : null,
+            onPressed: _canContinue ? _nextPage : null,
           ),
         ],
       ),
@@ -1721,11 +1875,9 @@ class _QuestionPage extends StatelessWidget {
     return AnimatedBuilder(
       animation: entrance,
       builder: (context, pageChild) {
-        final double opacity =
-            entrance.value.clamp(0.0, 1.0);
+        final double opacity = entrance.value.clamp(0.0, 1.0);
 
-        final double verticalOffset =
-            24.0 * (1.0 - entrance.value);
+        final double verticalOffset = 24.0 * (1.0 - entrance.value);
 
         return Opacity(
           opacity: opacity,
@@ -1737,10 +1889,7 @@ class _QuestionPage extends StatelessWidget {
       },
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(
-          vertical: 8,
-          horizontal: 2,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1750,9 +1899,7 @@ class _QuestionPage extends StatelessWidget {
             Text(
               eyebrow,
               style: TextStyle(
-                color: AppColors.primary.withValues(
-                  alpha: 0.92,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.92),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 2.15,
@@ -1778,9 +1925,7 @@ class _QuestionPage extends StatelessWidget {
             Text(
               description,
               style: TextStyle(
-                color: Colors.white.withValues(
-                  alpha: 0.48,
-                ),
+                color: Colors.white.withValues(alpha: 0.48),
                 fontSize: 13,
                 height: 1.52,
                 fontWeight: FontWeight.w500,
@@ -1808,12 +1953,8 @@ class _QuestionPage extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                AppColors.primary.withValues(
-                  alpha: 0.16,
-                ),
-                AppColors.secondary.withValues(
-                  alpha: 0.045,
-                ),
+                AppColors.primary.withValues(alpha: 0.16),
+                AppColors.secondary.withValues(alpha: 0.045),
                 Colors.transparent,
               ],
             ),
@@ -1833,21 +1974,15 @@ class _QuestionPage extends StatelessWidget {
                 Colors.white.withValues(alpha: 0.022),
               ],
             ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(
-                  alpha: 0.15,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.15),
                 blurRadius: 30,
                 spreadRadius: 1,
               ),
               BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: 0.20,
-                ),
+                color: Colors.black.withValues(alpha: 0.20),
                 blurRadius: 24,
                 offset: const Offset(0, 10),
               ),
@@ -1861,20 +1996,14 @@ class _QuestionPage extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary.withValues(
-                    alpha: 0.20,
-                  ),
-                  AppColors.secondary.withValues(
-                    alpha: 0.07,
-                  ),
+                  AppColors.primary.withValues(alpha: 0.20),
+                  AppColors.secondary.withValues(alpha: 0.07),
                 ],
               ),
             ),
             child: Icon(
               icon,
-              color: Colors.white.withValues(
-                alpha: 0.94,
-              ),
+              color: Colors.white.withValues(alpha: 0.94),
               size: 25,
             ),
           ),
@@ -1898,12 +2027,10 @@ class _PremiumTextField extends StatefulWidget {
   });
 
   @override
-  State<_PremiumTextField> createState() =>
-      _PremiumTextFieldState();
+  State<_PremiumTextField> createState() => _PremiumTextFieldState();
 }
 
-class _PremiumTextFieldState
-    extends State<_PremiumTextField> {
+class _PremiumTextFieldState extends State<_PremiumTextField> {
   late final TextEditingController _controller;
 
   bool _focused = false;
@@ -1912,9 +2039,7 @@ class _PremiumTextFieldState
   void initState() {
     super.initState();
 
-    _controller = TextEditingController(
-      text: widget.initialValue,
-    );
+    _controller = TextEditingController(text: widget.initialValue);
   }
 
   @override
@@ -1948,9 +2073,7 @@ class _PremiumTextFieldState
             ),
             if (_focused)
               BoxShadow(
-                color: AppColors.primary.withValues(
-                  alpha: 0.14,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.14),
                 blurRadius: 34,
                 spreadRadius: 1,
               ),
@@ -1959,10 +2082,7 @@ class _PremiumTextFieldState
         child: ClipRRect(
           borderRadius: BorderRadius.circular(27),
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 18,
-              sigmaY: 18,
-            ),
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 280),
               decoration: BoxDecoration(
@@ -1971,30 +2091,21 @@ class _PremiumTextFieldState
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(
-                      alpha: _focused ? 0.065 : 0.045,
-                    ),
-                    Colors.white.withValues(
-                      alpha: _focused ? 0.024 : 0.015,
-                    ),
+                    Colors.white.withValues(alpha: _focused ? 0.065 : 0.045),
+                    Colors.white.withValues(alpha: _focused ? 0.024 : 0.015),
                   ],
                 ),
                 border: Border.all(
                   color: _focused
-                      ? AppColors.primary.withValues(
-                          alpha: 0.52,
-                        )
-                      : Colors.white.withValues(
-                          alpha: 0.075,
-                        ),
+                      ? AppColors.primary.withValues(alpha: 0.52)
+                      : Colors.white.withValues(alpha: 0.075),
                   width: _focused ? 1.2 : 1,
                 ),
               ),
               child: TextField(
                 controller: _controller,
                 onChanged: widget.onChanged,
-                textCapitalization:
-                    TextCapitalization.words,
+                textCapitalization: TextCapitalization.words,
                 cursorColor: AppColors.primary,
                 cursorWidth: 1.5,
                 style: const TextStyle(
@@ -2006,47 +2117,36 @@ class _PremiumTextFieldState
                 decoration: InputDecoration(
                   hintText: 'Your first name',
                   hintStyle: TextStyle(
-                    color: Colors.white.withValues(
-                      alpha: 0.24,
-                    ),
+                    color: Colors.white.withValues(alpha: 0.24),
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),
                   prefixIcon: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 10,
-                      right: 4,
-                    ),
+                    padding: const EdgeInsets.only(left: 10, right: 4),
                     child: Icon(
                       Icons.person_outline_rounded,
                       color: _focused
                           ? AppColors.primary
-                          : Colors.white.withValues(
-                              alpha: 0.40,
-                            ),
+                          : Colors.white.withValues(alpha: 0.40),
                       size: 21,
                     ),
                   ),
                   filled: true,
                   fillColor: Colors.transparent,
-                  contentPadding:
-                      const EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 21,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(27),
+                    borderRadius: BorderRadius.circular(27),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(27),
+                    borderRadius: BorderRadius.circular(27),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(27),
+                    borderRadius: BorderRadius.circular(27),
                     borderSide: BorderSide.none,
                   ),
                 ),
@@ -2068,12 +2168,7 @@ class _ChoiceData {
   final String subtitle;
   final IconData icon;
 
-  const _ChoiceData(
-    this.value,
-    this.title,
-    this.subtitle,
-    this.icon,
-  );
+  const _ChoiceData(this.value, this.title, this.subtitle, this.icon);
 }
 
 // =============================================================================
@@ -2101,8 +2196,7 @@ class _SingleChoiceList extends StatelessWidget {
             selected: selected == options[index].value,
             onTap: () => onSelected(options[index].value),
           ),
-          if (index < options.length - 1)
-            const SizedBox(height: 12),
+          if (index < options.length - 1) const SizedBox(height: 12),
         ],
       ],
     );
@@ -2128,8 +2222,7 @@ class _SingleChoiceGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool twoColumns =
-            constraints.maxWidth >= 540;
+        final bool twoColumns = constraints.maxWidth >= 540;
 
         if (!twoColumns) {
           return _SingleChoiceList(
@@ -2141,11 +2234,9 @@ class _SingleChoiceGrid extends StatelessWidget {
 
         return GridView.builder(
           shrinkWrap: true,
-          physics:
-              const NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: options.length,
-          gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
@@ -2156,10 +2247,8 @@ class _SingleChoiceGrid extends StatelessWidget {
 
             return _ChoiceCard(
               data: option,
-              selected:
-                  selected == option.value,
-              onTap: () =>
-                  onSelected(option.value),
+              selected: selected == option.value,
+              onTap: () => onSelected(option.value),
             );
           },
         );
@@ -2187,42 +2276,33 @@ class _MultiChoiceGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool twoColumns =
-            constraints.maxWidth >= 540;
+        final bool twoColumns = constraints.maxWidth >= 540;
 
         return Column(
           children: [
             GridView.builder(
               shrinkWrap: true,
-              physics:
-                  const NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: options.length,
-              gridDelegate:
-                  SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount:
-                    twoColumns ? 2 : 1,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: twoColumns ? 2 : 1,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio:
-                    twoColumns ? 1.62 : 3.9,
+                childAspectRatio: twoColumns ? 1.62 : 3.9,
               ),
               itemBuilder: (context, index) {
-                final _ChoiceData option =
-                    options[index];
+                final _ChoiceData option = options[index];
 
                 return _ChoiceCard(
                   data: option,
-                  selected:
-                      selected.contains(option.value),
-                  onTap: () =>
-                      onToggle(option.value),
+                  selected: selected.contains(option.value),
+                  onTap: () => onToggle(option.value),
                 );
               },
             ),
             const SizedBox(height: 14),
             AnimatedSwitcher(
-              duration:
-                  const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 250),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               child: Align(
@@ -2239,8 +2319,7 @@ class _MultiChoiceGrid extends StatelessWidget {
                         color: AppColors.primary,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary
-                                .withValues(alpha: 0.45),
+                            color: AppColors.primary.withValues(alpha: 0.45),
                             blurRadius: 10,
                           ),
                         ],
@@ -2252,8 +2331,7 @@ class _MultiChoiceGrid extends StatelessWidget {
                           ? 'Select at least one option'
                           : '${selected.length} selected',
                       style: TextStyle(
-                        color: Colors.white
-                            .withValues(alpha: 0.42),
+                        color: Colors.white.withValues(alpha: 0.42),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
@@ -2286,8 +2364,7 @@ class _ChoiceCard extends StatefulWidget {
   });
 
   @override
-  State<_ChoiceCard> createState() =>
-      _ChoiceCardState();
+  State<_ChoiceCard> createState() => _ChoiceCardState();
 }
 
 class _ChoiceCardState extends State<_ChoiceCard>
@@ -2300,8 +2377,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
 
     _pressController = AnimationController(
       vsync: this,
-      duration:
-          const Duration(milliseconds: 140),
+      duration: const Duration(milliseconds: 140),
     );
   }
 
@@ -2336,82 +2412,62 @@ class _ChoiceCardState extends State<_ChoiceCard>
     return AnimatedBuilder(
       animation: _pressController,
       builder: (context, child) {
-        final double scale =
-            1.0 - (_pressController.value * 0.018);
+        final double scale = 1.0 - (_pressController.value * 0.018);
 
-        return Transform.scale(
-          scale: scale,
-          child: child,
-        );
+        return Transform.scale(scale: scale, child: child);
       },
       child: GestureDetector(
         onTap: _handleTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration:
-              const Duration(milliseconds: 320),
+          duration: const Duration(milliseconds: 320),
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(24),
             gradient: widget.selected
                 ? LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppColors.primary
-                          .withValues(alpha: 0.16),
-                      AppColors.secondary
-                          .withValues(alpha: 0.075),
-                      Colors.white
-                          .withValues(alpha: 0.025),
+                      AppColors.primary.withValues(alpha: 0.16),
+                      AppColors.secondary.withValues(alpha: 0.075),
+                      Colors.white.withValues(alpha: 0.025),
                     ],
                   )
                 : LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.white
-                          .withValues(alpha: 0.045),
-                      Colors.white
-                          .withValues(alpha: 0.018),
+                      Colors.white.withValues(alpha: 0.045),
+                      Colors.white.withValues(alpha: 0.018),
                     ],
                   ),
             border: Border.all(
               color: widget.selected
-                  ? AppColors.primary
-                      .withValues(alpha: 0.42)
-                  : Colors.white
-                      .withValues(alpha: 0.075),
-              width:
-                  widget.selected ? 1.2 : 1,
+                  ? AppColors.primary.withValues(alpha: 0.42)
+                  : Colors.white.withValues(alpha: 0.075),
+              width: widget.selected ? 1.2 : 1,
             ),
             boxShadow: widget.selected
                 ? [
                     BoxShadow(
-                      color: AppColors.primary
-                          .withValues(alpha: 0.13),
+                      color: AppColors.primary.withValues(alpha: 0.13),
                       blurRadius: 28,
                       spreadRadius: 1,
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black
-                          .withValues(alpha: 0.12),
+                      color: Colors.black.withValues(alpha: 0.12),
                       blurRadius: 20,
-                      offset:
-                          const Offset(0, 8),
+                      offset: const Offset(0, 8),
                     ),
                   ],
           ),
           child: Row(
             children: [
-              _ChoiceIcon(
-                icon: widget.data.icon,
-                selected: widget.selected,
-              ),
+              _ChoiceIcon(icon: widget.data.icon, selected: widget.selected),
               const SizedBox(width: 13),
               Expanded(
                 child: _ChoiceText(
@@ -2420,9 +2476,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
                 ),
               ),
               const SizedBox(width: 8),
-              _ChoiceSelectionIndicator(
-                selected: widget.selected,
-              ),
+              _ChoiceSelectionIndicator(selected: widget.selected),
             ],
           ),
         ),
@@ -2439,16 +2493,12 @@ class _ChoiceIcon extends StatelessWidget {
   final IconData icon;
   final bool selected;
 
-  const _ChoiceIcon({
-    required this.icon,
-    required this.selected,
-  });
+  const _ChoiceIcon({required this.icon, required this.selected});
 
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration:
-          const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       width: 48,
       height: 48,
@@ -2458,27 +2508,19 @@ class _ChoiceIcon extends StatelessWidget {
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary,
-                  AppColors.secondary,
-                ],
+                colors: [AppColors.primary, AppColors.secondary],
               )
             : null,
-        color: selected
-            ? null
-            : Colors.white.withValues(alpha: 0.045),
+        color: selected ? null : Colors.white.withValues(alpha: 0.045),
         border: Border.all(
           color: selected
-              ? Colors.white
-                  .withValues(alpha: 0.22)
-              : Colors.white
-                  .withValues(alpha: 0.075),
+              ? Colors.white.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.075),
         ),
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: AppColors.primary
-                      .withValues(alpha: 0.28),
+                  color: AppColors.primary.withValues(alpha: 0.28),
                   blurRadius: 20,
                   spreadRadius: 1,
                 ),
@@ -2487,15 +2529,11 @@ class _ChoiceIcon extends StatelessWidget {
       ),
       child: AnimatedScale(
         scale: selected ? 1.0 : 0.94,
-        duration:
-            const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         child: Icon(
           icon,
-          color: selected
-              ? Colors.white
-              : Colors.white
-                  .withValues(alpha: 0.58),
+          color: selected ? Colors.white : Colors.white.withValues(alpha: 0.58),
           size: 20,
         ),
       ),
@@ -2511,35 +2549,23 @@ class _ChoiceText extends StatelessWidget {
   final _ChoiceData data;
   final bool selected;
 
-  const _ChoiceText({
-    required this.data,
-    required this.selected,
-  });
+  const _ChoiceText({required this.data, required this.selected});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      mainAxisAlignment:
-          MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         AnimatedDefaultTextStyle(
-          duration:
-              const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 250),
           style: TextStyle(
-            color: Colors.white.withValues(
-              alpha: selected ? 0.98 : 0.88,
-            ),
+            color: Colors.white.withValues(alpha: selected ? 0.98 : 0.88),
             fontSize: 13,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.1,
           ),
-          child: Text(
-            data.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(data.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
         const SizedBox(height: 4),
         Text(
@@ -2547,9 +2573,7 @@ class _ChoiceText extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white.withValues(
-              alpha: selected ? 0.52 : 0.37,
-            ),
+            color: Colors.white.withValues(alpha: selected ? 0.52 : 0.37),
             fontSize: 10.5,
             height: 1.3,
             fontWeight: FontWeight.w500,
@@ -2564,49 +2588,35 @@ class _ChoiceText extends StatelessWidget {
 // CHOICE SELECTION INDICATOR
 // =============================================================================
 
-class _ChoiceSelectionIndicator
-    extends StatelessWidget {
+class _ChoiceSelectionIndicator extends StatelessWidget {
   final bool selected;
 
-  const _ChoiceSelectionIndicator({
-    required this.selected,
-  });
+  const _ChoiceSelectionIndicator({required this.selected});
 
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration:
-          const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 260),
       switchInCurve: Curves.easeOutBack,
-      transitionBuilder:
-          (child, animation) {
+      transitionBuilder: (child, animation) {
         return ScaleTransition(
           scale: animation,
-          child: FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          child: FadeTransition(opacity: animation, child: child),
         );
       },
       child: selected
           ? Container(
-              key: const ValueKey<String>(
-                'selected',
-              ),
+              key: const ValueKey<String>('selected'),
               width: 24,
               height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.secondary,
-                  ],
+                  colors: [AppColors.primary, AppColors.secondary],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary
-                        .withValues(alpha: 0.30),
+                    color: AppColors.primary.withValues(alpha: 0.30),
                     blurRadius: 16,
                   ),
                 ],
@@ -2618,19 +2628,13 @@ class _ChoiceSelectionIndicator
               ),
             )
           : Container(
-              key: const ValueKey<String>(
-                'unselected',
-              ),
+              key: const ValueKey<String>('unselected'),
               width: 24,
               height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white
-                    .withValues(alpha: 0.025),
-                border: Border.all(
-                  color: Colors.white
-                      .withValues(alpha: 0.12),
-                ),
+                color: Colors.white.withValues(alpha: 0.025),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
               ),
             ),
     );
@@ -2641,8 +2645,7 @@ class _ChoiceSelectionIndicator
 // PREMIUM INFO CARD
 // =============================================================================
 
-class _PremiumInfoCard
-    extends StatelessWidget {
+class _PremiumInfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -2658,26 +2661,19 @@ class _PremiumInfoCard
     return Container(
       padding: const EdgeInsets.all(19),
       decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(26),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white
-                .withValues(alpha: 0.055),
-            Colors.white
-                .withValues(alpha: 0.018),
+            Colors.white.withValues(alpha: 0.055),
+            Colors.white.withValues(alpha: 0.018),
           ],
         ),
-        border: Border.all(
-          color: Colors.white
-              .withValues(alpha: 0.075),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.075)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black
-                .withValues(alpha: 0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 30,
             offset: const Offset(0, 12),
           ),
@@ -2694,29 +2690,24 @@ class _PremiumInfoCard
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary
-                      .withValues(alpha: 0.18),
-                  AppColors.secondary
-                      .withValues(alpha: 0.08),
+                  AppColors.primary.withValues(alpha: 0.18),
+                  AppColors.secondary.withValues(alpha: 0.08),
                 ],
               ),
               border: Border.all(
-                color: AppColors.primary
-                    .withValues(alpha: 0.18),
+                color: AppColors.primary.withValues(alpha: 0.18),
               ),
             ),
             child: Icon(
               icon,
-              color: Colors.white
-                  .withValues(alpha: 0.88),
+              color: Colors.white.withValues(alpha: 0.88),
               size: 22,
             ),
           ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -2731,8 +2722,7 @@ class _PremiumInfoCard
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white
-                        .withValues(alpha: 0.40),
+                    color: Colors.white.withValues(alpha: 0.40),
                     fontSize: 11,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
@@ -2751,18 +2741,14 @@ class _PremiumInfoCard
 // COMPLETION SCREEN
 // =============================================================================
 
-class _OnboardingCompletionScreen
-    extends StatefulWidget {
+class _OnboardingCompletionScreen extends StatefulWidget {
   final LearningProfile profile;
 
-  const _OnboardingCompletionScreen({
-    required this.profile,
-  });
+  const _OnboardingCompletionScreen({required this.profile});
 
   @override
-  State<_OnboardingCompletionScreen>
-      createState() =>
-          _OnboardingCompletionScreenState();
+  State<_OnboardingCompletionScreen> createState() =>
+      _OnboardingCompletionScreenState();
 }
 
 class _OnboardingCompletionScreenState
@@ -2776,37 +2762,48 @@ class _OnboardingCompletionScreenState
 
     _controller = AnimationController(
       vsync: this,
-      duration:
-          const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1800),
     )..forward();
 
-    Future.delayed(
-      const Duration(milliseconds: 2300),
-      _openHome,
-    );
+    Future.delayed(const Duration(milliseconds: 2300), _openHome);
   }
 
-  void _openHome() {
+  Future<void> _openHome() async {
     if (!mounted) {
       return;
     }
 
-    Navigator.of(context).pushReplacement(
+    final NavigatorState navigator = Navigator.of(context);
+    final existing = await LevelAssessmentService.load();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (existing == null) {
+      navigator.pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => LevelAssessmentScreen(
+            profile: widget.profile,
+            onFinished: () => _pushHome(navigator),
+          ),
+        ),
+      );
+      return;
+    }
+
+    _pushHome(navigator);
+  }
+
+  void _pushHome(NavigatorState navigator) {
+    navigator.pushReplacement(
       PageRouteBuilder(
-        transitionDuration:
-            const Duration(milliseconds: 900),
-        pageBuilder:
-            (context, animation, secondaryAnimation) {
-          return const HomeScreen();
+        transitionDuration: const Duration(milliseconds: 900),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return const AppShell();
         },
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
-          final Animation<double> curved =
-              CurvedAnimation(
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final Animation<double> curved = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
           );
@@ -2814,10 +2811,7 @@ class _OnboardingCompletionScreenState
           return FadeTransition(
             opacity: curved,
             child: ScaleTransition(
-              scale: Tween<double>(
-                begin: 0.985,
-                end: 1.0,
-              ).animate(curved),
+              scale: Tween<double>(begin: 0.985, end: 1.0).animate(curved),
               child: child,
             ),
           );
@@ -2839,68 +2833,49 @@ class _OnboardingCompletionScreenState
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const OnboardingBackground(
-            child: SizedBox.expand(),
-          ),
+          const OnboardingBackground(child: SizedBox.expand()),
           Center(
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
-                final double progress =
-                    Curves.easeOutCubic.transform(
+                final double progress = Curves.easeOutCubic.transform(
                   _controller.value,
                 );
 
                 return Opacity(
-                  opacity:
-                      progress.clamp(0.0, 1.0),
+                  opacity: progress.clamp(0.0, 1.0),
                   child: Transform.scale(
-                    scale:
-                        0.88 + (progress * 0.12),
+                    scale: 0.88 + (progress * 0.12),
                     child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _CompletionOrb(
-                          progress: progress,
-                        ),
+                        _CompletionOrb(progress: progress),
                         const SizedBox(height: 36),
                         const Text(
                           'Your Eloqia experience',
-                          textAlign:
-                              TextAlign.center,
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 25,
-                            fontWeight:
-                                FontWeight.w800,
+                            fontWeight: FontWeight.w800,
                             letterSpacing: -0.7,
                           ),
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          widget.profile.name
-                                  .trim()
-                                  .isEmpty
+                          widget.profile.name.trim().isEmpty
                               ? 'is being prepared ✨'
                               : 'is being prepared for '
-                                  '${widget.profile.name.trim()} ✨',
-                          textAlign:
-                              TextAlign.center,
+                                    '${widget.profile.name.trim()} ✨',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white
-                                .withValues(
-                              alpha: 0.45,
-                            ),
+                            color: Colors.white.withValues(alpha: 0.45),
                             fontSize: 14,
-                            fontWeight:
-                                FontWeight.w500,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 28),
-                        _CompletionIndicator(
-                          progress: progress,
-                        ),
+                        _CompletionIndicator(progress: progress),
                       ],
                     ),
                   ),
@@ -2918,13 +2893,10 @@ class _OnboardingCompletionScreenState
 // COMPLETION ORB
 // =============================================================================
 
-class _CompletionOrb
-    extends StatelessWidget {
+class _CompletionOrb extends StatelessWidget {
   final double progress;
 
-  const _CompletionOrb({
-    required this.progress,
-  });
+  const _CompletionOrb({required this.progress});
 
   @override
   Widget build(BuildContext context) {
@@ -2938,14 +2910,8 @@ class _CompletionOrb
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                AppColors.primary
-                    .withValues(
-                  alpha: 0.14 * progress,
-                ),
-                AppColors.secondary
-                    .withValues(
-                  alpha: 0.045 * progress,
-                ),
+                AppColors.primary.withValues(alpha: 0.14 * progress),
+                AppColors.secondary.withValues(alpha: 0.045 * progress),
                 Colors.transparent,
               ],
             ),
@@ -2956,10 +2922,7 @@ class _CompletionOrb
           height: 154,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white
-                  .withValues(alpha: 0.055),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
           ),
         ),
         Container(
@@ -2970,29 +2933,17 @@ class _CompletionOrb
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary,
-                AppColors.secondary,
-              ],
+              colors: [AppColors.primary, AppColors.secondary],
             ),
-            border: Border.all(
-              color: Colors.white
-                  .withValues(alpha: 0.20),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary
-                    .withValues(
-                  alpha: 0.38 * progress,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.38 * progress),
                 blurRadius: 70,
                 spreadRadius: 12,
               ),
               BoxShadow(
-                color: AppColors.secondary
-                    .withValues(
-                  alpha: 0.16 * progress,
-                ),
+                color: AppColors.secondary.withValues(alpha: 0.16 * progress),
                 blurRadius: 100,
                 spreadRadius: 4,
               ),
@@ -3013,50 +2964,38 @@ class _CompletionOrb
 // COMPLETION INDICATOR
 // =============================================================================
 
-class _CompletionIndicator
-    extends StatelessWidget {
+class _CompletionIndicator extends StatelessWidget {
   final double progress;
 
-  const _CompletionIndicator({
-    required this.progress,
-  });
+  const _CompletionIndicator({required this.progress});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 160,
       child: ClipRRect(
-        borderRadius:
-            BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(999),
         child: Stack(
           children: [
             Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white
-                    .withValues(alpha: 0.055),
-                borderRadius:
-                    BorderRadius.circular(999),
+                color: Colors.white.withValues(alpha: 0.055),
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
             FractionallySizedBox(
-              widthFactor:
-                  progress.clamp(0.0, 1.0),
+              widthFactor: progress.clamp(0.0, 1.0),
               child: Container(
                 height: 4,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.secondary,
-                    ],
+                    colors: [AppColors.primary, AppColors.secondary],
                   ),
-                  borderRadius:
-                      BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary
-                          .withValues(alpha: 0.35),
+                      color: AppColors.primary.withValues(alpha: 0.35),
                       blurRadius: 10,
                     ),
                   ],

@@ -6,6 +6,40 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Mia Experience 4.0
+
+## Added
+
+* Added a standalone first-launch welcome screen for Mia and removed the
+  onboarding overlay. The splash displays the complete logo asset uncropped.
+* Added a lesson catalog covering grammar, vocabulary, reading, and listening
+  with deterministic exercise evaluation, feedback, XP, combos, and achievements.
+* Added Mia's shared visual presence and device text-to-speech actions to Home,
+  lessons, Progress, and Profile.
+* Added `VoiceProvider`, `SpeechProvider`, `ConversationProvider`, and
+  `AvatarProvider` boundaries while preserving existing provider APIs.
+* Connected Home learning actions to lessons and guided writing; recommendations
+  and progress summaries are derived from local learner data.
+* Added measured skill display and session-derived achievement states.
+
+## Changed
+
+* Live conversation now reports its secure configuration requirements before
+  startup and stays disabled until the backend URL and OIDC provider are wired.
+* The device/browser speech engine is the available TTS fallback; voice quality
+  and accent vary by device.
+
+## Verification
+
+* `flutter analyze`: no issues found.
+* `flutter test`: 52 tests passed.
+
+## Remaining Configuration
+
+* LiveKit/OpenAI conversation and a Mia LiveAvatar require backend credentials,
+  OIDC integration, and runtime verification. No cloud voice or avatar POC has
+  been performed.
+
 # [v0.1.0] — 28 July 2026
 
 ## 🚀 Project Foundation
@@ -303,7 +337,7 @@ During this version, I learned:
 
 * How to design the foundation of a personalized AI experience
 
-v0.5.0] — 26 August 2026
+[v0.5.0] — 26 August 2026
 🧠 Personalized Learning Experience
 
 The fifth milestone of Eloqia AI was completed.
@@ -362,3 +396,290 @@ How to structure a scalable Learning Hub
 How to create personalized application experiences
 How to separate profile, progression and UI architecture
 How to prepare an application for future AI-powered learning experiences
+
+# [Unreleased] — Mia Voice Foundation
+
+## Added
+
+* Added a single light sweep to the existing animated splash logo.
+* Connected the splash logo to Mia's intro with a shared Hero transition.
+* Added an OIDC-protected FastAPI endpoint for room-scoped LiveKit voice sessions.
+* Added a LiveKit Agents worker using OpenAI Realtime and the LiveAvatar plugin.
+* Added a Flutter LiveKit session view with live video rendering, microphone
+  mute, disconnect handling, and a static Mia image fallback.
+* Added an explicit microphone-consent step and fail-closed configuration states.
+
+## Security and Availability
+
+* Provider credentials remain server-side and are read from environment
+  variables.
+* Voice sessions are not available until an OIDC provider, LiveKit project,
+  OpenAI API key, LiveAvatar API key, and avatar are configured.
+* The Flutter app does not yet inject an authenticated OIDC token provider.
+* No transcript, learner memory, assessment score, or XP is persisted by this
+  voice foundation.
+
+## Verification
+
+* `flutter analyze` passes.
+* Flutter widget and voice-client tests pass.
+* Backend tests pass on Python 3.14.6.
+
+
+# [0.7.5] — 02 October 2026
+
+🧠 Intelligent Learning Experience
+
+The seventh major milestone of Eloqia AI was completed.
+
+This version represents a major evolution of Eloqia from a personalized learning foundation into a more complete, immersive and intelligent English learning application.
+
+V0.7.5 focuses on strengthening the learner experience, expanding the application architecture, improving personalization, introducing a more immersive Mia experience, and preparing the foundation for the transition toward V1.0.
+
+✨ Added
+
+🎯 Personalized Onboarding
+
+Added expanded 15-step personalized onboarding experience
+
+Added personalized learning goals
+
+Added secondary learning goals
+
+Added learning difficulties and strengths
+
+Added confidence level personalization
+
+Added speaking situation personalization
+
+Added learning preferences
+
+Added preferred correction style
+
+Added motivation personalization
+
+Added learning pace personalization
+
+Added learner interests
+
+Added preferred tutor style
+
+Added CEFR level selection from A1 to C2
+
+Added personalized onboarding completion experience
+
+🧠 Learner Profile & Persistence
+
+Strengthened persistent learner profile architecture
+
+Added persistent application state management
+
+Added persistent onboarding state
+
+Improved connection between learner profile and application state
+
+Strengthened profile persistence reliability
+
+📚 Learning Experience
+
+Expanded the Learning Hub experience
+
+Added learning category foundations
+
+Added Conversation learning experience foundation
+
+Added Vocabulary learning experience foundation
+
+Added Grammar learning experience foundation
+
+Added Listening learning experience foundation
+
+Added Writing learning experience foundation
+
+Added Reading learning experience foundation
+
+Added Academic learning foundations
+
+Added personalized learning session foundations
+
+Added assessment experience foundations
+
+📈 Progression
+
+Strengthened persistent XP system
+
+Strengthened level progression
+
+Strengthened streak tracking
+
+Added daily learning goals
+
+Added learning statistics
+
+Added skill progression foundations
+
+Added progression snapshots
+
+Improved connection between learning activity and learner progression
+
+🧠 Learning Memory
+
+Added Learning Memory foundations
+
+Added dedicated learning memory architecture
+
+Prepared the application to retain learner weaknesses, strengths and learning history
+
+Prepared memory architecture for future adaptive learning
+
+🤖 Mia
+
+Added Mia onboarding introduction experience
+
+Added Mia visual tutor presence
+
+Added contextual Mia onboarding guidance
+
+Added personalized Mia experience foundations
+
+Added Mia personalization architecture
+
+Added foundation for future contextual AI tutoring
+
+🏠 Application Experience
+
+Added AppShell navigation architecture
+
+Improved Home experience
+
+Connected Home experience to learner profile and progression data
+
+Expanded application-wide navigation foundations
+
+Improved connection between major application sections
+
+✨ Premium Experience
+
+Expanded Liquid Glass visual system
+
+Added layered glass surfaces
+
+Improved ambient lighting
+
+Improved gradients and visual depth
+
+Improved borders and shadows
+
+Improved animations and transitions
+
+Improved onboarding visual experience
+
+Improved responsive layouts
+
+Improved spacing and visual hierarchy
+
+Improved application-wide visual consistency
+
+🔧 Improved
+
+Improved application architecture
+
+Improved persistent application state management
+
+Improved onboarding reliability
+
+Improved learner profile integration
+
+Improved progression architecture
+
+Improved Learning Hub structure
+
+Improved Mia architecture
+
+Improved navigation foundations
+
+Improved responsive behavior
+
+Improved animation system
+
+Improved premium UI consistency
+
+Improved separation between profile, progression, memory and learning responsibilities
+
+Prepared the application for a more advanced adaptive learning architecture
+
+📚 What I Learned
+
+During this version, I learned:
+
+How to design a multi-screen Flutter learning application
+
+How to build a more scalable application architecture
+
+How to connect persistent learner data across multiple experiences
+
+How to structure personalized onboarding at a larger scale
+
+How to connect learner profiles with application navigation
+
+How to structure persistent progression systems
+
+How to separate learner profile, progression and memory responsibilities
+
+How to design a modular Learning Hub
+
+How to create a more personalized AI tutor foundation
+
+How to build reusable premium Flutter interfaces
+
+How to manage application state across multiple screens
+
+How to prepare a Flutter application for future AI-powered learning
+
+How to think about adaptive learning architecture before implementing the complete AI layer
+
+🚀 V0.7.5 → V1.0
+
+V0.7.5 establishes the foundation for Eloqia AI's transition toward its first complete product release.
+
+Future development will focus on:
+
+Real AI-powered learning
+
+AI-generated lessons
+
+Complete Grammar learning experience
+
+Complete Vocabulary learning experience
+
+Complete Reading learning experience
+
+Complete Listening learning experience
+
+Advanced Writing and Speaking experiences
+
+Intelligent answer evaluation
+
+Advanced AI-generated feedback
+
+Adaptive difficulty
+
+Personalized recommendations
+
+Advanced Learning Memory
+
+Real-time AI conversations
+
+Natural voice interaction with Mia
+
+Advanced Mia expressions and emotional responses
+
+Gamified learning progression
+
+Cloud synchronization
+
+Premium subscription architecture
+
+Multiple AI tutors
+
+Complete adaptive AI language academy 🚀

@@ -3,60 +3,38 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../models/learning_profile.dart';
+import '../../../models/learning_session.dart';
+import '../../../services/learning/learning_engine.dart';
+import '../../../services/learning/learning_progress_service.dart';
+import '../../../services/learning/learning_session_service.dart';
 import '../../../theme/app_colors.dart';
+import '../../tutors/mia/mia_dialogue.dart';
 
 class ConversationSessionScreen extends StatefulWidget {
   final LearningProfile profile;
 
-  const ConversationSessionScreen({
-    super.key,
-    required this.profile,
-  });
+  const ConversationSessionScreen({super.key, required this.profile});
 
   @override
   State<ConversationSessionScreen> createState() =>
       _ConversationSessionScreenState();
 }
 
-class _ConversationSessionScreenState
-    extends State<ConversationSessionScreen>
+class _ConversationSessionScreenState extends State<ConversationSessionScreen>
     with TickerProviderStateMixin {
   late final AnimationController _entranceController;
   late final AnimationController _ambientController;
 
-  final TextEditingController _responseController =
-      TextEditingController();
+  final TextEditingController _responseController = TextEditingController();
 
+  final DateTime _sessionStartedAt = DateTime.now().toUtc();
   int _currentChallenge = 0;
 
   bool _showFeedback = false;
+  bool _isCompleting = false;
+  MiaPracticeFeedback? _feedback;
 
-  final List<_ConversationChallenge> _challenges = const [
-    _ConversationChallenge(
-      title: 'Start naturally',
-      prompt:
-          'Imagine you have just met someone from another country. Introduce yourself naturally and tell them something interesting about you.',
-      hint:
-          'Try to sound natural rather than perfect. Imagine you are speaking to a real person.',
-      focus: 'Fluency',
-    ),
-    _ConversationChallenge(
-      title: 'Share your opinion',
-      prompt:
-          'What is something you genuinely enjoy learning or doing? Explain why it matters to you.',
-      hint:
-          'Give a reason and add a personal example if you can.',
-      focus: 'Expression',
-    ),
-    _ConversationChallenge(
-      title: 'Keep the conversation going',
-      prompt:
-          'Your conversation partner says: “I would love to visit your country one day.” What would you say next?',
-      hint:
-          'React to what they said and ask a natural follow-up question.',
-      focus: 'Interaction',
-    ),
-  ];
+  final List<MiaPracticePrompt> _challenges = MiaDialogue.prompts;
 
   @override
   void initState() {
@@ -85,9 +63,7 @@ class _ConversationSessionScreenState
   Widget build(BuildContext context) {
     final profile = widget.profile;
 
-    final name = profile.name.trim().isEmpty
-        ? 'Learner'
-        : profile.name.trim();
+    final name = profile.name.trim().isEmpty ? 'Learner' : profile.name.trim();
 
     final challenge = _challenges[_currentChallenge];
 
@@ -95,9 +71,7 @@ class _ConversationSessionScreenState
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          _SessionBackground(
-            controller: _ambientController,
-          ),
+          _SessionBackground(controller: _ambientController),
           SafeArea(
             child: FadeTransition(
               opacity: CurvedAnimation(
@@ -105,44 +79,37 @@ class _ConversationSessionScreenState
                 curve: Curves.easeOut,
               ),
               child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.025),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: _entranceController,
-                    curve: Curves.easeOutCubic,
-                  ),
-                ),
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 0.025),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _entranceController,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
                 child: CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        16,
-                        20,
-                        40,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                       sliver: SliverList(
-                        delegate: SliverChildListDelegate(
-                          [
-                            _buildHeader(),
-                            const SizedBox(height: 22),
-                            _buildProgress(),
-                            const SizedBox(height: 26),
-                            _buildWelcome(name),
-                            const SizedBox(height: 20),
-                            _buildChallenge(challenge),
-                            const SizedBox(height: 18),
-                            if (_showFeedback)
-                              _buildFeedback(),
-                            const SizedBox(height: 18),
-                            _buildResponseArea(),
-                            const SizedBox(height: 18),
-                            _buildActionButton(),
-                          ],
-                        ),
+                        delegate: SliverChildListDelegate([
+                          _buildHeader(),
+                          const SizedBox(height: 22),
+                          _buildProgress(),
+                          const SizedBox(height: 26),
+                          _buildWelcome(name),
+                          const SizedBox(height: 20),
+                          _buildChallenge(challenge),
+                          const SizedBox(height: 18),
+                          if (_showFeedback) _buildFeedback(),
+                          const SizedBox(height: 18),
+                          _buildResponseArea(),
+                          const SizedBox(height: 18),
+                          _buildActionButton(),
+                        ]),
                       ),
                     ),
                   ],
@@ -188,16 +155,13 @@ class _ConversationSessionScreenState
             ],
           ),
         ),
-        _SessionBadge(
-          label: '${_currentChallenge + 1}/${_challenges.length}',
-        ),
+        _SessionBadge(label: '${_currentChallenge + 1}/${_challenges.length}'),
       ],
     );
   }
 
   Widget _buildProgress() {
-    final progress =
-        (_currentChallenge + 1) / _challenges.length;
+    final progress = (_currentChallenge + 1) / _challenges.length;
 
     return _GlassPanel(
       padding: const EdgeInsets.all(16),
@@ -232,10 +196,8 @@ class _ConversationSessionScreenState
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 5,
-              backgroundColor:
-                  Colors.white.withValues(alpha: 0.07),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(
+              backgroundColor: Colors.white.withValues(alpha: 0.07),
+              valueColor: const AlwaysStoppedAnimation<Color>(
                 AppColors.primary,
               ),
             ),
@@ -249,6 +211,54 @@ class _ConversationSessionScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          children: [
+            ClipOval(
+              child: Image.asset(
+                'assets/tutors/mia/mia.png',
+                width: 42,
+                height: 42,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  width: 42,
+                  height: 42,
+                  color: AppColors.surface,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 11),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'MIA · WRITING PRACTICE',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.3,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Local prompts · no live AI review',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
         Text(
           'Let’s make English feel natural, $name.',
           style: const TextStyle(
@@ -264,9 +274,7 @@ class _ConversationSessionScreenState
           'There is no need to be perfect. Focus on expressing '
           'your ideas clearly and naturally.',
           style: TextStyle(
-            color: AppColors.textSecondary.withValues(
-              alpha: 0.72,
-            ),
+            color: AppColors.textSecondary.withValues(alpha: 0.72),
             fontSize: 13.5,
             height: 1.5,
           ),
@@ -275,9 +283,7 @@ class _ConversationSessionScreenState
     );
   }
 
-  Widget _buildChallenge(
-    _ConversationChallenge challenge,
-  ) {
+  Widget _buildChallenge(MiaPracticePrompt challenge) {
     return _GlassPanel(
       padding: const EdgeInsets.all(22),
       child: Column(
@@ -293,16 +299,11 @@ class _ConversationSessionScreenState
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primary,
-                      AppColors.secondary,
-                    ],
+                    colors: [AppColors.primary, AppColors.secondary],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(
-                        alpha: 0.20,
-                      ),
+                      color: AppColors.primary.withValues(alpha: 0.20),
                       blurRadius: 24,
                     ),
                   ],
@@ -316,15 +317,12 @@ class _ConversationSessionScreenState
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'YOUR CHALLENGE',
                       style: TextStyle(
-                        color: AppColors.primary.withValues(
-                          alpha: 0.78,
-                        ),
+                        color: AppColors.primary.withValues(alpha: 0.78),
                         fontSize: 8.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.6,
@@ -342,9 +340,7 @@ class _ConversationSessionScreenState
                   ],
                 ),
               ),
-              _FocusBadge(
-                label: challenge.focus,
-              ),
+              _FocusBadge(label: challenge.focus),
             ],
           ),
           const SizedBox(height: 22),
@@ -364,13 +360,10 @@ class _ConversationSessionScreenState
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
               color: Colors.white.withValues(alpha: 0.035),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(
                   Icons.lightbulb_outline_rounded,
@@ -382,9 +375,7 @@ class _ConversationSessionScreenState
                   child: Text(
                     challenge.hint,
                     style: TextStyle(
-                      color: Colors.white.withValues(
-                        alpha: 0.52,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.52),
                       fontSize: 11,
                       height: 1.45,
                     ),
@@ -443,15 +434,13 @@ class _ConversationSessionScreenState
             cursorColor: AppColors.primary,
             decoration: InputDecoration(
               counterText: '',
-              hintText:
-                  'Write your answer here...',
+              hintText: 'Write your answer here...',
               hintStyle: TextStyle(
                 color: Colors.white.withValues(alpha: 0.27),
                 fontSize: 13,
               ),
               filled: true,
-              fillColor:
-                  Colors.white.withValues(alpha: 0.035),
+              fillColor: Colors.white.withValues(alpha: 0.035),
               contentPadding: const EdgeInsets.all(15),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(17),
@@ -468,9 +457,7 @@ class _ConversationSessionScreenState
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(17),
                 borderSide: BorderSide(
-                  color: AppColors.primary.withValues(
-                    alpha: 0.40,
-                  ),
+                  color: AppColors.primary.withValues(alpha: 0.40),
                 ),
               ),
             ),
@@ -481,14 +468,14 @@ class _ConversationSessionScreenState
   }
 
   Widget _buildFeedback() {
+    final MiaPracticeFeedback feedback = _feedback!;
+
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: AppColors.success.withValues(alpha: 0.07),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.16),
-        ),
+        color: AppColors.primary.withValues(alpha: 0.07),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,38 +485,48 @@ class _ConversationSessionScreenState
             height: 35,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.success.withValues(
-                alpha: 0.12,
-              ),
+              color: AppColors.primary.withValues(alpha: 0.12),
             ),
             child: const Icon(
-              Icons.auto_awesome_rounded,
-              color: AppColors.success,
+              Icons.fact_check_outlined,
+              color: AppColors.primary,
               size: 17,
             ),
           ),
           const SizedBox(width: 11),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Great direction.',
+                const Text(
+                  'Local practice check',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
-                  'Your response has been captured. In the next '
-                  'iteration, Eloqia will provide intelligent '
-                  'feedback based on your language.',
-                  style: TextStyle(
-                    color: Colors.white54,
+                  feedback.observations.join(' · '),
+                  style: const TextStyle(color: Colors.white54, fontSize: 10),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  feedback.nextStep,
+                  style: const TextStyle(
+                    color: Colors.white70,
                     fontSize: 11,
                     height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Word and sentence counts only; no grammar score or AI review.',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 9,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -541,26 +538,20 @@ class _ConversationSessionScreenState
   }
 
   Widget _buildActionButton() {
-    final hasResponse =
-        _responseController.text.trim().isNotEmpty;
+    final hasResponse = _responseController.text.trim().isNotEmpty;
 
-    final isLast =
-        _currentChallenge == _challenges.length - 1;
+    final isLast = _currentChallenge == _challenges.length - 1;
 
     return SizedBox(
       width: double.infinity,
       height: 55,
       child: FilledButton(
-        onPressed: hasResponse
-            ? _handleAction
-            : null,
+        onPressed: hasResponse ? _handleAction : null,
         style: FilledButton.styleFrom(
           backgroundColor: Colors.white,
-          disabledBackgroundColor:
-              Colors.white.withValues(alpha: 0.08),
+          disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
           foregroundColor: AppColors.background,
-          disabledForegroundColor:
-              Colors.white.withValues(alpha: 0.28),
+          disabledForegroundColor: Colors.white.withValues(alpha: 0.28),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(17),
@@ -571,14 +562,9 @@ class _ConversationSessionScreenState
           children: [
             Text(
               _showFeedback
-                  ? (isLast
-                      ? 'Complete session'
-                      : 'Continue')
+                  ? (isLast ? 'Complete session' : 'Continue')
                   : 'Submit response',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 9),
             Icon(
@@ -596,24 +582,103 @@ class _ConversationSessionScreenState
   void _handleAction() {
     if (!_showFeedback) {
       setState(() {
+        _feedback = MiaDialogue.review(
+          _responseController.text,
+          encourageQuestion: _challenges[_currentChallenge].encourageQuestion,
+        );
         _showFeedback = true;
       });
       return;
     }
 
-    if (_currentChallenge <
-        _challenges.length - 1) {
+    if (_currentChallenge < _challenges.length - 1) {
       setState(() {
         _currentChallenge++;
         _showFeedback = false;
+        _feedback = null;
         _responseController.clear();
       });
     } else {
-      _showCompletionDialog();
+      _finalizeAndShowCompletion();
     }
   }
 
-  void _showCompletionDialog() {
+  Future<void> _finalizeAndShowCompletion() async {
+    if (_isCompleting) {
+      return;
+    }
+    _isCompleting = true;
+
+    final String id = 'writing-${_sessionStartedAt.microsecondsSinceEpoch}';
+    final Duration duration = DateTime.now().toUtc().difference(
+      _sessionStartedAt,
+    );
+    bool recorded = false;
+    bool rewardGranted = false;
+
+    try {
+      final LearningSession? session =
+          await LearningSessionService.createSession(
+            id: id,
+            activityType: LearningActivityType.writing,
+            tutorId: 'mia',
+            tutorName: 'Mia',
+            targetLevel: widget.profile.currentLevel,
+            startingLevel: widget.profile.currentLevel,
+            skills: const <LearningSkill>[
+              LearningSkill.writing,
+              LearningSkill.vocabulary,
+            ],
+            adaptive: false,
+          );
+
+      if (session != null) {
+        await LearningSessionService.startSession(
+          id,
+          startedAt: _sessionStartedAt,
+        );
+        await LearningSessionService.updateDuration(id, duration);
+        await LearningSessionService.updateObjectives(
+          id,
+          completed: _challenges.length,
+          total: _challenges.length,
+        );
+        final LearningSession? completed =
+            await LearningSessionService.completeSession(
+              id,
+              xpEarned: LearningEngine.guidedWritingCompletionXp,
+            );
+        recorded = completed != null;
+        if (recorded) {
+          final progress =
+              await LearningProgressService.registerCompletedSession(
+                xpEarned: LearningEngine.guidedWritingCompletionXp,
+                learningDuration: duration,
+                updateStreak: true,
+              );
+          rewardGranted = progress != null;
+          if (!rewardGranted) {
+            await LearningSessionService.updateSession(
+              completed.copyWith(xpEarned: 0),
+            );
+          }
+        }
+      }
+    } on Object {
+      recorded = false;
+    }
+
+    if (!mounted) {
+      return;
+    }
+    _isCompleting = false;
+
+    if (!recorded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session history could not be saved.')),
+      );
+    }
+
     showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.70),
@@ -622,6 +687,10 @@ class _ConversationSessionScreenState
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(24),
           child: _CompletionCard(
+            sessionRecorded: recorded,
+            xpAwarded: rewardGranted
+                ? LearningEngine.guidedWritingCompletionXp
+                : 0,
             onClose: () {
               Navigator.of(context).pop();
               Navigator.of(this.context).pop();
@@ -638,9 +707,13 @@ class _ConversationSessionScreenState
    ================================================================ */
 
 class _CompletionCard extends StatelessWidget {
+  final bool sessionRecorded;
+  final int xpAwarded;
   final VoidCallback onClose;
 
   const _CompletionCard({
+    required this.sessionRecorded,
+    required this.xpAwarded,
     required this.onClose,
   });
 
@@ -649,20 +722,13 @@ class _CompletionCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 25,
-          sigmaY: 25,
-        ),
+        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
         child: Container(
           padding: const EdgeInsets.all(25),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            color: AppColors.backgroundElevated.withValues(
-              alpha: 0.94,
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-            ),
+            color: AppColors.backgroundElevated.withValues(alpha: 0.94),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -673,16 +739,11 @@ class _CompletionCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.secondary,
-                    ],
+                    colors: [AppColors.primary, AppColors.secondary],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(
-                        alpha: 0.25,
-                      ),
+                      color: AppColors.primary.withValues(alpha: 0.25),
                       blurRadius: 35,
                     ),
                   ],
@@ -704,9 +765,11 @@ class _CompletionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'You completed this conversation experience. '
-                'Your next sessions will become increasingly '
-                'personalized.',
+                sessionRecorded
+                    ? 'The session was saved locally. Your written responses '
+                          'were not saved or sent for AI review.'
+                    : 'The session history could not be saved. Your written '
+                          'responses were not saved, and no XP was awarded.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.55),
@@ -714,29 +777,97 @@ class _CompletionCard extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
+              if (sessionRecorded && xpAwarded == 0) ...<Widget>[
+                const SizedBox(height: 8),
+                const Text(
+                  'XP could not be saved, so none was awarded.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.warning, fontSize: 11),
+                ),
+              ],
               const SizedBox(height: 20),
+              if (xpAwarded > 0)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(17),
+                    color:
+                        (sessionRecorded
+                                ? AppColors.success
+                                : AppColors.warning)
+                            .withValues(alpha: 0.07),
+                    border: Border.all(
+                      color:
+                          (sessionRecorded
+                                  ? AppColors.success
+                                  : AppColors.warning)
+                              .withValues(alpha: 0.14),
+                    ),
+                  ),
+                  child: TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: xpAwarded),
+                    duration: const Duration(milliseconds: 650),
+                    builder: (BuildContext context, int value, Widget? child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.bolt_rounded,
+                            color: AppColors.xp,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              '+$value XP earned for finishing all 3 prompts',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(17),
-                  color: AppColors.xp.withValues(alpha: 0.07),
+                  color:
+                      (sessionRecorded ? AppColors.success : AppColors.warning)
+                          .withValues(alpha: 0.07),
                   border: Border.all(
-                    color: AppColors.xp.withValues(alpha: 0.14),
+                    color:
+                        (sessionRecorded
+                                ? AppColors.success
+                                : AppColors.warning)
+                            .withValues(alpha: 0.14),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                  children: <Widget>[
                     Icon(
-                      Icons.bolt_rounded,
-                      color: AppColors.xp,
+                      sessionRecorded
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.info_outline_rounded,
+                      color: sessionRecorded
+                          ? AppColors.success
+                          : AppColors.warning,
                       size: 18,
                     ),
-                    SizedBox(width: 7),
+                    const SizedBox(width: 7),
                     Text(
-                      '+40 XP earned',
-                      style: TextStyle(
+                      sessionRecorded ? 'Session recorded' : 'Not recorded',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -761,10 +892,7 @@ class _CompletionCard extends StatelessWidget {
                   ),
                   child: const Text(
                     'Return to learning',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -780,46 +908,24 @@ class _CompletionCard extends StatelessWidget {
    SUPPORTING WIDGETS
    ================================================================ */
 
-class _ConversationChallenge {
-  final String title;
-  final String prompt;
-  final String hint;
-  final String focus;
-
-  const _ConversationChallenge({
-    required this.title,
-    required this.prompt,
-    required this.hint,
-    required this.focus,
-  });
-}
-
 class _GlassPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
 
-  const _GlassPanel({
-    required this.child,
-    required this.padding,
-  });
+  const _GlassPanel({required this.child, required this.padding});
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(27),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 22,
-          sigmaY: 22,
-        ),
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(27),
             color: Colors.white.withValues(alpha: 0.047),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.09),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.18),
@@ -839,10 +945,7 @@ class _GlassIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _GlassIconButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _GlassIconButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -857,9 +960,7 @@ class _GlassIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: Colors.white.withValues(alpha: 0.055),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.09),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
           ),
           child: Icon(
             icon,
@@ -875,23 +976,16 @@ class _GlassIconButton extends StatelessWidget {
 class _SessionBadge extends StatelessWidget {
   final String label;
 
-  const _SessionBadge({
-    required this.label,
-  });
+  const _SessionBadge({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(11),
         color: AppColors.primary.withValues(alpha: 0.09),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
       ),
       child: Text(
         label,
@@ -908,23 +1002,16 @@ class _SessionBadge extends StatelessWidget {
 class _FocusBadge extends StatelessWidget {
   final String label;
 
-  const _FocusBadge({
-    required this.label,
-  });
+  const _FocusBadge({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: AppColors.secondary.withValues(alpha: 0.10),
-        border: Border.all(
-          color: AppColors.secondary.withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.16)),
       ),
       child: Text(
         label.toUpperCase(),
@@ -942,9 +1029,7 @@ class _FocusBadge extends StatelessWidget {
 class _SessionBackground extends StatelessWidget {
   final Animation<double> controller;
 
-  const _SessionBackground({
-    required this.controller,
-  });
+  const _SessionBackground({required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -971,26 +1056,17 @@ class _SessionBackground extends StatelessWidget {
             Positioned(
               top: -150 + shift * 30,
               right: -150,
-              child: _GlowOrb(
-                color: AppColors.primary,
-                size: 380,
-              ),
+              child: _GlowOrb(color: AppColors.primary, size: 380),
             ),
             Positioned(
               top: 360 - shift * 40,
               left: -190,
-              child: _GlowOrb(
-                color: AppColors.secondary,
-                size: 410,
-              ),
+              child: _GlowOrb(color: AppColors.secondary, size: 410),
             ),
             Positioned(
               bottom: -220 + shift * 25,
               right: -30,
-              child: _GlowOrb(
-                color: AppColors.electricBlue,
-                size: 340,
-              ),
+              child: _GlowOrb(color: AppColors.electricBlue, size: 340),
             ),
           ],
         );
@@ -1003,18 +1079,12 @@ class _GlowOrb extends StatelessWidget {
   final Color color;
   final double size;
 
-  const _GlowOrb({
-    required this.color,
-    required this.size,
-  });
+  const _GlowOrb({required this.color, required this.size});
 
   @override
   Widget build(BuildContext context) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 60,
-        sigmaY: 60,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
       child: Container(
         width: size,
         height: size,

@@ -34,21 +34,17 @@ class LocalStorage {
   // APPLICATION METADATA
   // ---------------------------------------------------------------------------
 
-  static const String schemaVersionKey =
-      '$namespace.system.schema_version';
+  static const String schemaVersionKey = '$namespace.system.schema_version';
 
-  static const String initializedAtKey =
-      '$namespace.system.initialized_at';
+  static const String initializedAtKey = '$namespace.system.initialized_at';
 
-  static const String lastActiveAtKey =
-      '$namespace.system.last_active_at';
+  static const String lastActiveAtKey = '$namespace.system.last_active_at';
 
   // ---------------------------------------------------------------------------
   // LEARNER PROFILE
   // ---------------------------------------------------------------------------
 
-  static const String learningProfileKey =
-      '$namespace.profile.learning';
+  static const String learningProfileKey = '$namespace.profile.learning';
 
   static const String onboardingCompletedKey =
       '$namespace.profile.onboarding_completed';
@@ -57,17 +53,15 @@ class LocalStorage {
   // LEARNING DATA
   // ---------------------------------------------------------------------------
 
-  static const String progressKey =
-      '$namespace.learning.progress';
+  static const String progressKey = '$namespace.learning.progress';
 
-  static const String sessionsKey =
-      '$namespace.learning.sessions';
+  static const String sessionsKey = '$namespace.learning.sessions';
 
-  static const String memoryKey =
-      '$namespace.learning.memory';
+  static const String memoryKey = '$namespace.learning.memory';
 
-  static const String coursesKey =
-      '$namespace.learning.courses';
+  static const String coursesKey = '$namespace.learning.courses';
+
+  static const String assessmentKey = '$namespace.learning.assessment';
 
   /// Current version of Eloqia's local persistence schema.
   ///
@@ -87,23 +81,18 @@ class LocalStorage {
   /// This guarantees that application startup cannot accidentally initialize
   /// the persistence layer multiple times.
   static Future<bool> initialize() {
-    final Future<bool>? activeInitialization =
-        _initialization;
+    final Future<bool>? activeInitialization = _initialization;
 
     if (activeInitialization != null) {
       return activeInitialization;
     }
 
-    final Future<bool> initialization =
-        _initializeInternal();
+    final Future<bool> initialization = _initializeInternal();
 
     _initialization = initialization;
 
     initialization.whenComplete(() {
-      if (identical(
-        _initialization,
-        initialization,
-      )) {
+      if (identical(_initialization, initialization)) {
         _initialization = null;
       }
     });
@@ -112,15 +101,12 @@ class LocalStorage {
   }
 
   static Future<bool> _initializeInternal() async {
-    final SharedPreferences preferences =
-        await SharedPreferences.getInstance();
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
 
-    final bool isFirstLaunch =
-        !preferences.containsKey(initializedAtKey);
+    final bool isFirstLaunch = !preferences.containsKey(initializedAtKey);
 
     if (!preferences.containsKey(initializedAtKey)) {
-      final bool initialized =
-          await preferences.setString(
+      final bool initialized = await preferences.setString(
         initializedAtKey,
         DateTime.now().toUtc().toIso8601String(),
       );
@@ -133,16 +119,13 @@ class LocalStorage {
     }
 
     if (!preferences.containsKey(schemaVersionKey)) {
-      final bool schemaCreated =
-          await preferences.setInt(
+      final bool schemaCreated = await preferences.setInt(
         schemaVersionKey,
         currentSchemaVersion,
       );
 
       if (!schemaCreated) {
-        throw StateError(
-          'Eloqia could not persist its local schema version.',
-        );
+        throw StateError('Eloqia could not persist its local schema version.');
       }
     }
 
@@ -164,24 +147,14 @@ class LocalStorage {
   // STRING
   // ---------------------------------------------------------------------------
 
-  static Future<bool> saveString(
-    String key,
-    String value,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> saveString(String key, String value) async {
+    final SharedPreferences preferences = await instance;
 
-    return preferences.setString(
-      key,
-      value,
-    );
+    return preferences.setString(key, value);
   }
 
-  static Future<String?> readString(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<String?> readString(String key) async {
+    final SharedPreferences preferences = await instance;
 
     return preferences.getString(key);
   }
@@ -190,24 +163,14 @@ class LocalStorage {
   // INTEGER
   // ---------------------------------------------------------------------------
 
-  static Future<bool> saveInt(
-    String key,
-    int value,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> saveInt(String key, int value) async {
+    final SharedPreferences preferences = await instance;
 
-    return preferences.setInt(
-      key,
-      value,
-    );
+    return preferences.setInt(key, value);
   }
 
-  static Future<int?> readInt(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<int?> readInt(String key) async {
+    final SharedPreferences preferences = await instance;
 
     return preferences.getInt(key);
   }
@@ -216,24 +179,14 @@ class LocalStorage {
   // DOUBLE
   // ---------------------------------------------------------------------------
 
-  static Future<bool> saveDouble(
-    String key,
-    double value,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> saveDouble(String key, double value) async {
+    final SharedPreferences preferences = await instance;
 
-    return preferences.setDouble(
-      key,
-      value,
-    );
+    return preferences.setDouble(key, value);
   }
 
-  static Future<double?> readDouble(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<double?> readDouble(String key) async {
+    final SharedPreferences preferences = await instance;
 
     return preferences.getDouble(key);
   }
@@ -242,24 +195,14 @@ class LocalStorage {
   // BOOLEAN
   // ---------------------------------------------------------------------------
 
-  static Future<bool> saveBool(
-    String key,
-    bool value,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> saveBool(String key, bool value) async {
+    final SharedPreferences preferences = await instance;
 
-    return preferences.setBool(
-      key,
-      value,
-    );
+    return preferences.setBool(key, value);
   }
 
-  static Future<bool?> readBool(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool?> readBool(String key) async {
+    final SharedPreferences preferences = await instance;
 
     return preferences.getBool(key);
   }
@@ -268,27 +211,16 @@ class LocalStorage {
   // STRING LIST
   // ---------------------------------------------------------------------------
 
-  static Future<bool> saveStringList(
-    String key,
-    List<String> values,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> saveStringList(String key, List<String> values) async {
+    final SharedPreferences preferences = await instance;
 
-    return preferences.setStringList(
-      key,
-      List<String>.from(values),
-    );
+    return preferences.setStringList(key, List<String>.from(values));
   }
 
-  static Future<List<String>?> readStringList(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<List<String>?> readStringList(String key) async {
+    final SharedPreferences preferences = await instance;
 
-    final List<String>? values =
-        preferences.getStringList(key);
+    final List<String>? values = preferences.getStringList(key);
 
     if (values == null) {
       return null;
@@ -304,18 +236,11 @@ class LocalStorage {
   /// Persists an object as a JSON string.
   ///
   /// Returns `false` when the value cannot be serialized or persisted.
-  static Future<bool> saveJson(
-    String key,
-    Object value,
-  ) async {
+  static Future<bool> saveJson(String key, Object value) async {
     try {
-      final String encoded =
-          jsonEncode(value);
+      final String encoded = jsonEncode(value);
 
-      return await saveString(
-        key,
-        encoded,
-      );
+      return await saveString(key, encoded);
     } on Object {
       return false;
     }
@@ -324,14 +249,10 @@ class LocalStorage {
   /// Reads and decodes a JSON value.
   ///
   /// Returns `null` when the key is missing, empty, or contains invalid JSON.
-  static Future<dynamic> readJson(
-    String key,
-  ) async {
-    final String? encoded =
-        await readString(key);
+  static Future<dynamic> readJson(String key) async {
+    final String? encoded = await readString(key);
 
-    if (encoded == null ||
-        encoded.trim().isEmpty) {
+    if (encoded == null || encoded.trim().isEmpty) {
       return null;
     }
 
@@ -343,11 +264,8 @@ class LocalStorage {
   }
 
   /// Reads a JSON object as a strongly typed map.
-  static Future<Map<String, dynamic>?> readJsonMap(
-    String key,
-  ) async {
-    final dynamic value =
-        await readJson(key);
+  static Future<Map<String, dynamic>?> readJsonMap(String key) async {
+    final dynamic value = await readJson(key);
 
     if (value is! Map) {
       return null;
@@ -361,21 +279,15 @@ class LocalStorage {
   // ---------------------------------------------------------------------------
 
   /// Returns whether a key currently exists.
-  static Future<bool> containsKey(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> containsKey(String key) async {
+    final SharedPreferences preferences = await instance;
 
     return preferences.containsKey(key);
   }
 
   /// Removes one persisted value.
-  static Future<bool> delete(
-    String key,
-  ) async {
-    final SharedPreferences preferences =
-        await instance;
+  static Future<bool> delete(String key) async {
+    final SharedPreferences preferences = await instance;
 
     return preferences.remove(key);
   }
@@ -385,23 +297,15 @@ class LocalStorage {
   // ---------------------------------------------------------------------------
 
   /// Persists the onboarding completion state.
-  static Future<bool> saveOnboardingCompleted(
-    bool completed,
-  ) {
-    return saveBool(
-      onboardingCompletedKey,
-      completed,
-    );
+  static Future<bool> saveOnboardingCompleted(bool completed) {
+    return saveBool(onboardingCompletedKey, completed);
   }
 
   /// Returns whether the onboarding has been completed.
   ///
   /// Missing data safely defaults to `false`.
   static Future<bool> isOnboardingCompleted() async {
-    final bool? completed =
-        await readBool(
-      onboardingCompletedKey,
-    );
+    final bool? completed = await readBool(onboardingCompletedKey);
 
     return completed ?? false;
   }
@@ -411,22 +315,15 @@ class LocalStorage {
   // ---------------------------------------------------------------------------
 
   /// Persists the latest application activity timestamp in UTC.
-  static Future<bool> saveLastActiveAt(
-    DateTime value,
-  ) {
-    return saveString(
-      lastActiveAtKey,
-      value.toUtc().toIso8601String(),
-    );
+  static Future<bool> saveLastActiveAt(DateTime value) {
+    return saveString(lastActiveAtKey, value.toUtc().toIso8601String());
   }
 
   /// Reads the latest application activity timestamp.
   static Future<DateTime?> readLastActiveAt() async {
-    final String? value =
-        await readString(lastActiveAtKey);
+    final String? value = await readString(lastActiveAtKey);
 
-    if (value == null ||
-        value.isEmpty) {
+    if (value == null || value.isEmpty) {
       return null;
     }
 
@@ -439,19 +336,16 @@ class LocalStorage {
 
   /// Returns the locally stored persistence schema version.
   static Future<int> readSchemaVersion() async {
-    final int? version =
-        await readInt(schemaVersionKey);
+    final int? version = await readInt(schemaVersionKey);
 
     return version ?? currentSchemaVersion;
   }
 
   /// Returns the timestamp at which local persistence was initialized.
   static Future<DateTime?> readInitializedAt() async {
-    final String? value =
-        await readString(initializedAtKey);
+    final String? value = await readString(initializedAtKey);
 
-    if (value == null ||
-        value.isEmpty) {
+    if (value == null || value.isEmpty) {
       return null;
     }
 
@@ -467,26 +361,19 @@ class LocalStorage {
   /// Data belonging to other applications or unrelated namespaces remains
   /// untouched.
   static Future<bool> clearEloqiaData() async {
-    final SharedPreferences preferences =
-        await instance;
+    final SharedPreferences preferences = await instance;
 
-    final List<String> eloqiaKeys =
-        preferences
-            .getKeys()
-            .where(
-              (String key) =>
-                  key.startsWith('$namespace.'),
-            )
-            .toList();
+    final List<String> eloqiaKeys = preferences
+        .getKeys()
+        .where((String key) => key.startsWith('$namespace.'))
+        .toList();
 
     bool success = true;
 
     for (final String key in eloqiaKeys) {
-      final bool removed =
-          await preferences.remove(key);
+      final bool removed = await preferences.remove(key);
 
-      if (!removed &&
-          preferences.containsKey(key)) {
+      if (!removed && preferences.containsKey(key)) {
         success = false;
       }
     }

@@ -3,10 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../app/app_shell.dart';
 import '../../app/persistent_app_controller.dart';
 import '../../app/persistent_app_state.dart';
+import '../onboarding/mia_welcome_screen.dart';
 import '../../theme/app_colors.dart';
-import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _logoFade;
   late final Animation<double> _logoScale;
   late final Animation<double> _logoGlow;
+  late final Animation<double> _logoSweep;
   late final Animation<double> _contentFade;
   late final Animation<double> _contentSlide;
   late final Animation<double> _ringFade;
@@ -78,6 +80,13 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(
         parent: _masterController,
         curve: const Interval(0.08, 0.62, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _logoSweep = Tween<double>(begin: -1.45, end: 1.45).animate(
+      CurvedAnimation(
+        parent: _masterController,
+        curve: const Interval(0.28, 0.76, curve: Curves.easeInOutCubic),
       ),
     );
 
@@ -147,6 +156,9 @@ class _SplashScreenState extends State<SplashScreen>
         break;
 
       case PersistentAppStatus.firstLaunch:
+        _openMiaWelcome();
+        break;
+
       case PersistentAppStatus.onboardingRequired:
       case PersistentAppStatus.unknown:
         _openOnboarding();
@@ -155,11 +167,15 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _openHome() {
-    _navigateTo(const HomeScreen());
+    _navigateTo(const AppShell());
   }
 
   void _openOnboarding() {
     _navigateTo(const OnboardingScreen());
+  }
+
+  void _openMiaWelcome() {
+    _navigateTo(const MiaWelcomeScreen());
   }
 
   void _navigateTo(Widget destination) {
@@ -193,8 +209,8 @@ class _SplashScreenState extends State<SplashScreen>
                 curve: Curves.easeOutCubic,
               );
 
-              return FadeTransition(
-                opacity: curvedAnimation,
+              return Opacity(
+                opacity: 0.65 + 0.35 * curvedAnimation.value,
                 child: ScaleTransition(
                   scale: Tween<double>(
                     begin: 1.035,
@@ -443,16 +459,20 @@ class _SplashScreenState extends State<SplashScreen>
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              FadeTransition(
-                opacity: _logoFade,
+              Opacity(
+                key: const ValueKey<String>('splash-logo-visible'),
+                opacity: 0.42 + 0.58 * _logoFade.value,
                 child: Transform.scale(
                   scale: _logoScale.value * pulse,
-                  child: _buildLogo(logoSize),
+                  child: Hero(
+                    tag: 'eloqia-brand-mark',
+                    child: _buildLogo(logoSize),
+                  ),
                 ),
               ),
               const SizedBox(height: 38),
-              FadeTransition(
-                opacity: _contentFade,
+              Opacity(
+                opacity: 0.55 + 0.45 * _contentFade.value,
                 child: Transform.translate(
                   offset: Offset(0, _contentSlide.value),
                   child: _buildBranding(),
@@ -466,92 +486,86 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _buildLogo(double size) {
-    return Stack(
-      alignment: Alignment.center,
-      children: <Widget>[
-        Container(
-          width: size * 0.78,
-          height: size * 0.78,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: AppColors.primary.withValues(
-                  alpha: 0.32 * _logoGlow.value,
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.primary.withValues(
+                    alpha: 0.28 * _logoGlow.value,
+                  ),
+                  blurRadius: 64,
+                  spreadRadius: 6,
                 ),
-                blurRadius: 90,
-                spreadRadius: 12,
-              ),
-              BoxShadow(
-                color: AppColors.secondary.withValues(
-                  alpha: 0.18 * _logoGlow.value,
+                BoxShadow(
+                  color: AppColors.secondary.withValues(
+                    alpha: 0.15 * _logoGlow.value,
+                  ),
+                  blurRadius: 96,
+                  spreadRadius: 12,
                 ),
-                blurRadius: 130,
-                spreadRadius: 20,
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: size * 0.76,
-          height: size * 0.76,
-          padding: EdgeInsets.all(size * 0.025),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                Colors.white.withValues(alpha: 0.075),
-                Colors.white.withValues(alpha: 0.018),
               ],
             ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.11),
-              width: 1.2,
+          ),
+          ClipOval(
+            child: AnimatedBuilder(
+              animation: _logoSweep,
+              builder: (BuildContext context, Widget? child) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    child!,
+                    Align(
+                      alignment: Alignment(_logoSweep.value, 0),
+                      child: Transform.rotate(
+                        angle: -0.32,
+                        child: Container(
+                          width: size * 0.18,
+                          height: size * 1.2,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: <Color>[
+                                Colors.transparent,
+                                Colors.white.withValues(alpha: 0.08),
+                                Colors.white.withValues(alpha: 0.30),
+                                Colors.white.withValues(alpha: 0.08),
+                                Colors.transparent,
+                              ],
+                              stops: const <double>[0.0, 0.28, 0.5, 0.72, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+              child: Image.asset(
+                'assets/branding/logo/eloqia_logo_concept_v1.png',
+                key: const ValueKey<String>('eloqia-logo-full'),
+                width: size,
+                height: size,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+              ),
             ),
           ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/branding/logo/logo_concept_v1.png',
-              width: size * 0.70,
-              height: size * 0.70,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildBranding() {
     return Column(
       children: <Widget>[
-        ShaderMask(
-          shaderCallback: (Rect bounds) {
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: <Color>[
-                Colors.white.withValues(alpha: 0.88),
-                Colors.white,
-                AppColors.primary,
-              ],
-            ).createShader(bounds);
-          },
-          child: const Text(
-            'ELOQIA AI',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 39,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 7,
-              height: 1,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[

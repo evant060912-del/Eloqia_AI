@@ -134,7 +134,7 @@ class MiaPersonalizationService {
   ) {
     return <String, dynamic>{
       'name': 'Mia',
-      'accent': 'Californian American',
+      'accent': 'American English; regional accent is not verified',
       'role': 'AI English Tutor',
       'personality': _miaPersonality(profile),
       'teachingStyle': _miaTeachingStyle(profile),

@@ -744,7 +744,7 @@ class _MiaConversationCardState extends State<MiaConversationCard>
               Text(
                 widget.isAvailable
                     ? 'Start conversation'
-                    : 'Conversation coming soon',
+                  : 'Voice setup required',
                 style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w900,

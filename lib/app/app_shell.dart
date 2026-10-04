@@ -2,13 +2,22 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../features/learning/sessions/conversation_session_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/learning/learning_hub_screen.dart' as learning_hub;
+import '../features/lessons/engine/lesson_engine.dart';
+import '../features/lessons/engine/lesson_result_service.dart';
+import '../features/lessons/lesson_launcher.dart';
+import '../features/lessons/models/lesson_models.dart';
+import '../features/profile/profile_screen.dart';
+import '../features/progress/progress_screen.dart';
+import '../features/tutors/mia/mia_screen.dart';
+import '../models/learning_profile.dart';
+import '../services/learning/learning_engine.dart';
 import '../theme/app_colors.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({
-    super.key,
-  });
+  const AppShell({super.key});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -19,14 +28,6 @@ class _AppShellState extends State<AppShell>
   int _currentIndex = 0;
 
   late final AnimationController _animationController;
-
-  static const List<Widget> _pages = [
-    HomeScreen(),
-    _TalkPlaceholder(),
-    _LearnPlaceholder(),
-    _ProgressPlaceholder(),
-    _ProfilePlaceholder(),
-  ];
 
   @override
   void initState() {
@@ -56,6 +57,16 @@ class _AppShellState extends State<AppShell>
     _animationController
       ..reset()
       ..forward();
+  }
+
+  Widget _buildPage() {
+    return switch (_currentIndex) {
+      0 => const HomeScreen(),
+      1 => const MiaScreen(showBackButton: false),
+      2 => const _LearningTab(),
+      3 => const ProgressScreen(),
+      _ => const ProfileScreen(),
+    };
   }
 
   @override
@@ -92,7 +103,7 @@ class _AppShellState extends State<AppShell>
               },
               child: KeyedSubtree(
                 key: ValueKey<int>(_currentIndex),
-                child: _pages[_currentIndex],
+                child: _buildPage(),
               ),
             ),
           ),
@@ -126,26 +137,11 @@ class _PremiumNavigationBar extends StatelessWidget {
   });
 
   static const List<_NavigationItem> _items = [
-    _NavigationItem(
-      icon: Icons.home_rounded,
-      label: 'Home',
-    ),
-    _NavigationItem(
-      icon: Icons.graphic_eq_rounded,
-      label: 'Talk',
-    ),
-    _NavigationItem(
-      icon: Icons.auto_stories_rounded,
-      label: 'Learn',
-    ),
-    _NavigationItem(
-      icon: Icons.insights_rounded,
-      label: 'Progress',
-    ),
-    _NavigationItem(
-      icon: Icons.person_rounded,
-      label: 'Profile',
-    ),
+    _NavigationItem(icon: Icons.home_rounded, label: 'Home'),
+    _NavigationItem(icon: Icons.graphic_eq_rounded, label: 'Talk'),
+    _NavigationItem(icon: Icons.auto_stories_rounded, label: 'Learn'),
+    _NavigationItem(icon: Icons.insights_rounded, label: 'Progress'),
+    _NavigationItem(icon: Icons.person_rounded, label: 'Profile'),
   ];
 
   @override
@@ -155,10 +151,7 @@ class _PremiumNavigationBar extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(32),
         child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 28,
-            sigmaY: 28,
-          ),
+          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
           child: Container(
             height: 76,
             decoration: BoxDecoration(
@@ -188,18 +181,15 @@ class _PremiumNavigationBar extends StatelessWidget {
               ],
             ),
             child: Row(
-              children: List.generate(
-                _items.length,
-                (index) {
-                  return Expanded(
-                    child: _NavigationButton(
-                      item: _items[index],
-                      selected: currentIndex == index,
-                      onTap: () => onTap(index),
-                    ),
-                  );
-                },
-              ),
+              children: List.generate(_items.length, (index) {
+                return Expanded(
+                  child: _NavigationButton(
+                    item: _items[index],
+                    selected: currentIndex == index,
+                    onTap: () => onTap(index),
+                  ),
+                );
+              }),
             ),
           ),
         ),
@@ -231,10 +221,7 @@ class _NavigationButton extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(
-            horizontal: 4,
-            vertical: 8,
-          ),
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             gradient: selected
@@ -248,16 +235,12 @@ class _NavigationButton extends StatelessWidget {
                   )
                 : null,
             border: selected
-                ? Border.all(
-                    color: Colors.white.withValues(alpha: 0.10),
-                  )
+                ? Border.all(color: Colors.white.withValues(alpha: 0.10))
                 : null,
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withValues(
-                        alpha: 0.22,
-                      ),
+                      color: AppColors.primary.withValues(alpha: 0.22),
                       blurRadius: 22,
                     ),
                   ]
@@ -286,8 +269,7 @@ class _NavigationButton extends StatelessWidget {
                       ? Colors.white
                       : Colors.white.withValues(alpha: 0.42),
                   fontSize: 10,
-                  fontWeight:
-                      selected ? FontWeight.w800 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
                 child: Text(item.label),
@@ -304,10 +286,127 @@ class _NavigationItem {
   final IconData icon;
   final String label;
 
-  const _NavigationItem({
-    required this.icon,
-    required this.label,
-  });
+  const _NavigationItem({required this.icon, required this.label});
+}
+
+class _LearningTab extends StatefulWidget {
+  const _LearningTab();
+
+  @override
+  State<_LearningTab> createState() => _LearningTabState();
+}
+
+class _LearningTabState extends State<_LearningTab> {
+  LearningProfile? _profile;
+  LearningRecommendation? _recommendation;
+  int _completedSessions = 0;
+  int _learningMinutes = 0;
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final LessonContext data = await LessonContext.load();
+      final LessonChoice choice = data.recommend();
+
+      if (!mounted) return;
+      setState(() {
+        _profile = data.profile;
+        _recommendation = LearningRecommendation(
+          activity: LessonResultService.activityFor(choice.lesson.skill),
+          title: choice.lesson.title,
+          reason: choice.reason,
+          targetLevel: choice.lesson.level,
+          minutes: choice.lesson.estimatedMinutes,
+        );
+        _completedSessions = data.progress.statistics.completedLessons;
+        _learningMinutes = data.progress.statistics.learningMinutes;
+        _loading = false;
+        _error = null;
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _openRecommended() async {
+    await LessonLauncher.openRecommended(context);
+    if (mounted) await _load();
+  }
+
+  Future<void> _openWritingPractice() async {
+    final LearningProfile? profile = _profile;
+    if (profile == null) return;
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ConversationSessionScreen(profile: profile),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
+  Future<void> _openActivity(String activity) async {
+    final LessonSkill? skill = switch (activity) {
+      'Grammar' => LessonSkill.grammar,
+      'Vocabulary' => LessonSkill.vocabulary,
+      'Reading' => LessonSkill.reading,
+      'Listening' => LessonSkill.listening,
+      _ => null,
+    };
+    if (skill != null) {
+      await LessonLauncher.openSkill(context, skill);
+      if (mounted) await _load();
+      return;
+    }
+    if (activity == 'Writing') {
+      await _openWritingPractice();
+      return;
+    }
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => const MiaScreen()));
+    if (mounted) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+    if (_error != null || _profile == null || _recommendation == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: TextButton(onPressed: _load, child: const Text('Retry')),
+        ),
+      );
+    }
+
+    return learning_hub.LearningScreen(
+      profile: _profile!,
+      recommendation: _recommendation!,
+      completedSessions: _completedSessions,
+      learningMinutes: _learningMinutes,
+      onStartRecommended: _openRecommended,
+      onActivitySelected: _openActivity,
+    );
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -324,26 +423,17 @@ class _AppShellBackground extends StatelessWidget {
         Positioned(
           top: -180,
           right: -140,
-          child: _GlowOrb(
-            color: AppColors.primary,
-            size: 420,
-          ),
+          child: _GlowOrb(color: AppColors.primary, size: 420),
         ),
         Positioned(
           top: 260,
           left: -220,
-          child: _GlowOrb(
-            color: AppColors.secondary,
-            size: 430,
-          ),
+          child: _GlowOrb(color: AppColors.secondary, size: 430),
         ),
         Positioned(
           bottom: -180,
           right: -100,
-          child: _GlowOrb(
-            color: AppColors.electricBlue,
-            size: 360,
-          ),
+          child: _GlowOrb(color: AppColors.electricBlue, size: 360),
         ),
       ],
     );
@@ -354,18 +444,12 @@ class _GlowOrb extends StatelessWidget {
   final Color color;
   final double size;
 
-  const _GlowOrb({
-    required this.color,
-    required this.size,
-  });
+  const _GlowOrb({required this.color, required this.size});
 
   @override
   Widget build(BuildContext context) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 90,
-        sigmaY: 90,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
       child: Container(
         width: size,
         height: size,
@@ -381,175 +465,3 @@ class _GlowOrb extends StatelessWidget {
 /* -------------------------------------------------------------------------- */
 /*                              PLACEHOLDERS                                  */
 /* -------------------------------------------------------------------------- */
-
-class _TalkPlaceholder extends StatelessWidget {
-  const _TalkPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _ComingSoonPage(
-      icon: Icons.graphic_eq_rounded,
-      eyebrow: 'ELOQIA CONVERSATION',
-      title: 'Talk with Mia',
-      description:
-          'Your immersive AI conversation experience is coming next.',
-    );
-  }
-}
-
-class _LearnPlaceholder extends StatelessWidget {
-  const _LearnPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _ComingSoonPage(
-      icon: Icons.auto_stories_rounded,
-      eyebrow: 'LEARNING HUB',
-      title: 'Your learning universe',
-      description:
-          'Vocabulary, grammar, listening, writing and more.',
-    );
-  }
-}
-
-class _ProgressPlaceholder extends StatelessWidget {
-  const _ProgressPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _ComingSoonPage(
-      icon: Icons.insights_rounded,
-      eyebrow: 'YOUR EVOLUTION',
-      title: 'Progress intelligence',
-      description:
-          'Your English evolution will become measurable and adaptive.',
-    );
-  }
-}
-
-class _ProfilePlaceholder extends StatelessWidget {
-  const _ProfilePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _ComingSoonPage(
-      icon: Icons.person_rounded,
-      eyebrow: 'YOUR IDENTITY',
-      title: 'Learning profile',
-      description:
-          'Your Eloqia profile, preferences and personalization.',
-    );
-  }
-}
-
-class _ComingSoonPage extends StatelessWidget {
-  final IconData icon;
-  final String eyebrow;
-  final String title;
-  final String description;
-
-  const _ComingSoonPage({
-    required this.icon,
-    required this.eyebrow,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(36),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 24,
-              sigmaY: 24,
-            ),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(36),
-                color: Colors.white.withValues(alpha: 0.055),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.12),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.30),
-                    blurRadius: 40,
-                    offset: const Offset(0, 20),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppColors.primary,
-                          AppColors.secondary,
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(
-                            alpha: 0.28,
-                          ),
-                          blurRadius: 35,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  Text(
-                    eyebrow,
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    description,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.62),
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

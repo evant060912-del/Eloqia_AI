@@ -122,7 +122,13 @@ class LearningProgressService {
   // ===========================================================================
 
   /// Persists a progression object after structural validation.
-  static Future<Progress?> save(Progress progress) async {
+  static Future<Progress?> save(Progress input) async {
+    // Level follows XP: every 100 XP raises the level by one.
+    final int derivedLevel = input.xp ~/ 100 + 1;
+    final Progress progress = derivedLevel > input.level
+        ? input.copyWith(level: derivedLevel)
+        : input;
+
     if (progress.xp < 0 ||
         progress.level < 1 ||
         progress.currentStreak < 0 ||

@@ -116,7 +116,12 @@ class LearningSessionService {
     String id, {
     DateTime? completedAt,
     bool completed = true,
+    int xpEarned = 0,
   }) async {
+    if (xpEarned < 0) {
+      return null;
+    }
+
     final LearningSession? session = await getSession(id);
 
     if (session == null) {
@@ -131,6 +136,7 @@ class LearningSessionService {
           : LearningSessionStatus.abandoned,
       completedAt: end,
       completed: completed,
+      xpEarned: xpEarned,
     );
 
     final bool saved = await LearningSessionStorage.saveSession(updated);

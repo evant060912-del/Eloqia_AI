@@ -10,10 +10,7 @@ import '../../../theme/app_colors.dart';
 /// Each action is intentionally isolated so real learning modules can be
 /// connected progressively without changing the visual architecture.
 class QuickActionsSection extends StatelessWidget {
-  const QuickActionsSection({
-    super.key,
-    this.onActionSelected,
-  });
+  const QuickActionsSection({super.key, this.onActionSelected});
 
   /// Called when the learner selects a learning experience.
   ///
@@ -25,11 +22,7 @@ class QuickActionsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeader(),
-        const SizedBox(height: 22),
-        _buildGrid(),
-      ],
+      children: [_buildHeader(), const SizedBox(height: 22), _buildGrid()],
     );
   }
 
@@ -44,9 +37,7 @@ class QuickActionsSection extends StatelessWidget {
               Text(
                 'LEARNING HUB',
                 style: TextStyle(
-                  color: AppColors.primaryBright.withValues(
-                    alpha: 0.78,
-                  ),
+                  color: AppColors.primaryBright.withValues(alpha: 0.78),
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2.2,
@@ -67,9 +58,7 @@ class QuickActionsSection extends StatelessWidget {
               Text(
                 'Choose an experience and keep evolving.',
                 style: TextStyle(
-                  color: AppColors.textSecondary.withValues(
-                    alpha: 0.68,
-                  ),
+                  color: AppColors.textSecondary.withValues(alpha: 0.68),
                   fontSize: 13,
                   height: 1.4,
                 ),
@@ -87,10 +76,7 @@ class QuickActionsSection extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
-        ),
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           width: 50,
           height: 50,
@@ -100,22 +86,14 @@ class QuickActionsSection extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primary.withValues(
-                  alpha: 0.18,
-                ),
-                AppColors.secondary.withValues(
-                  alpha: 0.08,
-                ),
+                AppColors.primary.withValues(alpha: 0.18),
+                AppColors.secondary.withValues(alpha: 0.08),
               ],
             ),
-            border: Border.all(
-              color: AppColors.glassBorderStrong,
-            ),
+            border: Border.all(color: AppColors.glassBorderStrong),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(
-                  alpha: 0.16,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.16),
                 blurRadius: 28,
                 spreadRadius: -4,
               ),
@@ -181,70 +159,48 @@ const List<QuickActionData> quickActions = [
     title: 'Conversation',
     eyebrow: 'SPEAK',
     description: 'Speak naturally with your AI tutor.',
-    gradient: [
-      Color(0xFF2563EB),
-      Color(0xFF7C3AED),
-    ],
+    gradient: [Color(0xFF2563EB), Color(0xFF7C3AED)],
   ),
   QuickActionData(
     icon: Icons.auto_stories_rounded,
     title: 'Vocabulary',
     eyebrow: 'BUILD',
     description: 'Discover and master useful new words.',
-    gradient: [
-      Color(0xFF7C3AED),
-      Color(0xFFEC4899),
-    ],
+    gradient: [Color(0xFF7C3AED), Color(0xFFEC4899)],
   ),
   QuickActionData(
     icon: Icons.auto_fix_high_rounded,
     title: 'Grammar',
     eyebrow: 'REFINE',
     description: 'Improve accuracy and express yourself clearly.',
-    gradient: [
-      Color(0xFFEC4899),
-      Color(0xFFF97316),
-    ],
+    gradient: [Color(0xFFEC4899), Color(0xFFF97316)],
   ),
   QuickActionData(
     icon: Icons.headphones_rounded,
     title: 'Listening',
     eyebrow: 'UNDERSTAND',
     description: 'Train your ear with natural English.',
-    gradient: [
-      Color(0xFF06B6D4),
-      Color(0xFF2563EB),
-    ],
+    gradient: [Color(0xFF06B6D4), Color(0xFF2563EB)],
   ),
   QuickActionData(
     icon: Icons.edit_note_rounded,
     title: 'Writing',
     eyebrow: 'CREATE',
     description: 'Write with confidence and develop your style.',
-    gradient: [
-      Color(0xFF10B981),
-      Color(0xFF14B8A6),
-    ],
+    gradient: [Color(0xFF10B981), Color(0xFF14B8A6)],
   ),
   QuickActionData(
-    icon: Icons.school_rounded,
-    title: 'Academic',
+    icon: Icons.menu_book_rounded,
+    title: 'Reading',
     eyebrow: 'MASTER',
-    description: 'Develop advanced academic English skills.',
-    gradient: [
-      Color(0xFFF59E0B),
-      Color(0xFFEF4444),
-    ],
+    description: 'Read real passages and answer with text evidence.',
+    gradient: [Color(0xFFF59E0B), Color(0xFFEF4444)],
   ),
 ];
 
 /// Interactive premium learning card.
 class QuickActionCard extends StatefulWidget {
-  const QuickActionCard({
-    super.key,
-    required this.action,
-    this.onTap,
-  });
+  const QuickActionCard({super.key, required this.action, this.onTap});
 
   final QuickActionData action;
   final VoidCallback? onTap;
@@ -284,8 +240,8 @@ class _QuickActionCardState extends State<QuickActionCard> {
     final double scale = _isPressed
         ? 0.965
         : _isHovered
-            ? 1.018
-            : 1.0;
+        ? 1.018
+        : 1.0;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -315,10 +271,7 @@ class _QuickActionCardState extends State<QuickActionCard> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 22,
-          sigmaY: 22,
-        ),
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -333,15 +286,11 @@ class _QuickActionCardState extends State<QuickActionCard> {
                 action.gradient.last.withValues(
                   alpha: _isHovered ? 0.17 : 0.09,
                 ),
-                Colors.white.withValues(
-                  alpha: 0.035,
-                ),
+                Colors.white.withValues(alpha: 0.035),
               ],
             ),
             border: Border.all(
-              color: Colors.white.withValues(
-                alpha: _isHovered ? 0.22 : 0.11,
-              ),
+              color: Colors.white.withValues(alpha: _isHovered ? 0.22 : 0.11),
               width: 1,
             ),
             boxShadow: [
@@ -354,9 +303,7 @@ class _QuickActionCardState extends State<QuickActionCard> {
                 offset: const Offset(0, 12),
               ),
               BoxShadow(
-                color: AppColors.shadow.withValues(
-                  alpha: 0.55,
-                ),
+                color: AppColors.shadow.withValues(alpha: 0.55),
                 blurRadius: 28,
                 offset: const Offset(0, 14),
               ),
@@ -370,9 +317,7 @@ class _QuickActionCardState extends State<QuickActionCard> {
               Text(
                 action.eyebrow,
                 style: TextStyle(
-                  color: Colors.white.withValues(
-                    alpha: 0.52,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.52),
                   fontSize: 8,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.7,
@@ -396,9 +341,7 @@ class _QuickActionCardState extends State<QuickActionCard> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withValues(
-                    alpha: 0.68,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.68),
                   fontSize: 11.5,
                   height: 1.4,
                 ),
@@ -423,18 +366,12 @@ class _QuickActionCardState extends State<QuickActionCard> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            action.gradient.first.withValues(
-              alpha: _isHovered ? 0.40 : 0.27,
-            ),
-            action.gradient.last.withValues(
-              alpha: _isHovered ? 0.27 : 0.15,
-            ),
+            action.gradient.first.withValues(alpha: _isHovered ? 0.40 : 0.27),
+            action.gradient.last.withValues(alpha: _isHovered ? 0.27 : 0.15),
           ],
         ),
         border: Border.all(
-          color: Colors.white.withValues(
-            alpha: _isHovered ? 0.25 : 0.14,
-          ),
+          color: Colors.white.withValues(alpha: _isHovered ? 0.25 : 0.14),
         ),
         boxShadow: [
           BoxShadow(
@@ -446,11 +383,7 @@ class _QuickActionCardState extends State<QuickActionCard> {
           ),
         ],
       ),
-      child: Icon(
-        action.icon,
-        color: Colors.white,
-        size: 26,
-      ),
+      child: Icon(action.icon, color: Colors.white, size: 26),
     );
   }
 
@@ -460,25 +393,19 @@ class _QuickActionCardState extends State<QuickActionCard> {
         Text(
           'Explore',
           style: TextStyle(
-            color: Colors.white.withValues(
-              alpha: _isHovered ? 1.0 : 0.78,
-            ),
+            color: Colors.white.withValues(alpha: _isHovered ? 1.0 : 0.78),
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(width: 6),
         AnimatedSlide(
-          offset: _isHovered
-              ? const Offset(0.18, 0)
-              : Offset.zero,
+          offset: _isHovered ? const Offset(0.18, 0) : Offset.zero,
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           child: Icon(
             Icons.arrow_forward_rounded,
-            color: Colors.white.withValues(
-              alpha: _isHovered ? 1.0 : 0.72,
-            ),
+            color: Colors.white.withValues(alpha: _isHovered ? 1.0 : 0.72),
             size: 15,
           ),
         ),
