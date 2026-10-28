@@ -1,16 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
-enum MiaSpeechStyle { warm, excited, encouraging, playful, serious, calm }
+/// Emotional delivery requested for Mia's speech.
+///
+/// These styles are hints for the voice backend. The backend must translate
+/// them into supported Cartesia parameters or appropriate text delivery.
+enum MiaSpeechStyle {
+  warm,
+  excited,
+  encouraging,
+  playful,
+  serious,
+  calm,
+}
 
-/// Text-to-speech seam. Providers must never hold secrets inside the client;
-/// cloud voices belong behind the backend.
+/// Contract shared by Mia's voice output implementations.
 abstract class VoiceProvider {
   ValueListenable<bool> get speaking;
 
-  /// Short, honest description of the voice that will actually be heard.
+  /// Describes the actual voice provider, not an assumed voice.
   String get description;
 
   Future<bool> isAvailable();
@@ -27,94 +36,82 @@ abstract class VoiceProvider {
 
 typedef VoiceOutputProvider = VoiceProvider;
 
-/// Uses the browser or operating system speech engine. Voice quality, accent
-/// and availability depend on the device; it is not a studio-quality voice.
-class DeviceVoiceOutputProvider implements VoiceProvider {
-  FlutterTts? _tts;
-  Future<bool>? _setup;
-  String _voiceName = '';
+/// Generates and plays speech through the configured secure cloud service.
+///
+/// This provider intentionally does not use FlutterTts or another local
+/// speech engine. It requires an implementation of [CloudSpeechTransport]
+/// that requests audio from Eloqia's authenticated backend and plays it.
+///
+/// Cartesia credentials must remain on the backend.
+class CartesiaVoiceOutputProvider implements VoiceProvider {
+  CartesiaVoiceOutputProvider({
+    required CloudSpeechTransport transport,
+  }) : _transport = transport;
+
+  final CloudSpeechTransport _transport;
+
+  final ValueNotifier<bool> _speaking = ValueNotifier<bool>(false);
+
+  Future<void> _queue = Future<void>.value();
+
   int _generation = 0;
+  bool _disposed = false;
 
   @override
-  final ValueNotifier<bool> speaking = ValueNotifier<bool>(false);
+  ValueListenable<bool> get speaking => _speaking;
 
   @override
-  String get description => _voiceName.isEmpty
-      ? 'US English device voice unavailable'
-      : '$_voiceName · US English · California-specific accent unverified';
-
-  @visibleForTesting
-  static Map<String, String>? selectUnitedStatesVoice(
-    List<Map<String, String>> voices,
-  ) {
-    final List<Map<String, String>> candidates = voices.where((
-      Map<String, String> voice,
-    ) {
-      return voice['locale']?.toLowerCase().replaceAll('_', '-') == 'en-us';
-    }).toList();
-    if (candidates.isEmpty) return null;
-
-    int score(Map<String, String> voice) {
-      final String name = voice['name']!.toLowerCase();
-      return (name.contains('natural') || name.contains('neural') ? 100 : 0) +
-          (name.contains('aria') ? 40 : 0) +
-          (name.contains('jenny') ? 35 : 0) +
-          (name.contains('zira') ? 32 : 0) +
-          (name.contains('google us english') ? 30 : 0) +
-          (name.contains('samantha') ? 20 : 0) +
-          (name.contains('online') ? 10 : 0);
-    }
-
-    candidates.sort((Map<String, String> a, Map<String, String> b) {
-      return score(b).compareTo(score(a));
-    });
-    return candidates.first;
-  }
+  String get description => 'Mia · Cartesia Sonic 3.6 · Cloud voice';
 
   @override
-  Future<bool> isAvailable() => _setup ??= _initialise();
+  Future<bool> isAvailable() async {
+    if (_disposed) return false;
 
-  Future<bool> _initialise() async {
     try {
-      final FlutterTts tts = _tts ??= FlutterTts();
-      await tts.awaitSpeakCompletion(true);
-      await tts.setLanguage('en-US');
-      await tts.setVolume(1.0);
-      if (kIsWeb) {
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-
-      final dynamic raw = await tts.getVoices;
-      Map<String, String>? selectedVoice;
-      if (raw is List) {
-        final List<Map<String, String>> voices = <Map<String, String>>[
-          for (final dynamic v in raw)
-            if (v is Map && v['name'] is String && v['locale'] is String)
-              <String, String>{
-                'name': v['name'] as String,
-                'locale': v['locale'] as String,
-              },
-        ];
-        selectedVoice = selectUnitedStatesVoice(voices);
-      }
-      if (selectedVoice == null) return false;
-      await tts.setVoice(selectedVoice);
-      _voiceName = selectedVoice['name']!;
-      return true;
+      return await _transport.isAvailable();
     } on Object {
       return false;
     }
   }
 
-  static String clean(String text) => text
-      .replaceAll(
-        RegExp(r'[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]', unicode: true),
-        '',
-      )
-      .replaceAll(RegExp(r'[*_`#>]'), '')
-      .replaceAll(RegExp(r'_{3,}'), ' blank ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+  /// Removes common Markdown formatting before speech synthesis.
+  static String clean(String text) {
+    return text
+        .replaceAll(
+          RegExp(r'```[\s\S]*?```'),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(r'`([^`]*)`'),
+          r'$1',
+        )
+        .replaceAll(
+          RegExp(r'\[([^\]]+)\]\([^)]+\)'),
+          r'$1',
+        )
+        .replaceAll(
+          RegExp(r'https?://\S+'),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(r'[*_~#>]'),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'\s+'),
+          ' ',
+        )
+        .trim();
+  }
+
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final Future<void> next = _queue.then((_) => operation());
+
+    // Keep the queue usable after an individual request fails.
+    _queue = next.catchError((Object _) {});
+
+    return next;
+  }
 
   @override
   Future<void> speak(
@@ -123,58 +120,126 @@ class DeviceVoiceOutputProvider implements VoiceProvider {
     bool otherSpeaker = false,
     double speedFactor = 1.0,
   }) async {
+    if (_disposed) return;
+
     final String spoken = clean(text);
-    if (spoken.isEmpty || !await isAvailable()) {
-      return;
+
+    if (spoken.isEmpty) return;
+
+    if (!speedFactor.isFinite ||
+        speedFactor < 0.6 ||
+        speedFactor > 2.0) {
+      throw ArgumentError.value(
+        speedFactor,
+        'speedFactor',
+        'Must be between 0.6 and 2.0.',
+      );
     }
-    final FlutterTts tts = _tts!;
-    final int generation = ++_generation;
 
-    final double base = kIsWeb ? 1.0 : 0.5;
-    final (double rate, double pitch) = switch (style) {
-      MiaSpeechStyle.excited => (1.04, 1.02),
-      MiaSpeechStyle.encouraging => (0.98, 1.0),
-      MiaSpeechStyle.playful => (1.02, 1.01),
-      MiaSpeechStyle.serious => (0.96, 0.98),
-      MiaSpeechStyle.calm => (0.97, 1.0),
-      MiaSpeechStyle.warm => (1.0, 1.0),
-    };
+    final int requestGeneration = ++_generation;
 
-    try {
-      await tts.stop();
-      await tts.setSpeechRate(base * rate * speedFactor);
-      await tts.setPitch(otherSpeaker ? 0.92 : pitch);
-      speaking.value = true;
-      await tts
-          .speak(spoken)
-          .timeout(
-            Duration(seconds: 20 + spoken.length ~/ 8),
-            onTimeout: () => null,
-          );
-    } on Object {
-      // Playback errors leave the app silent but usable.
-    } finally {
-      if (generation == _generation) {
-        speaking.value = false;
+    await _enqueue(() async {
+      if (_disposed || requestGeneration != _generation) return;
+
+      _speaking.value = true;
+
+      try {
+        await _transport.speak(
+          spoken,
+          style: style,
+          otherSpeaker: otherSpeaker,
+          speedFactor: speedFactor,
+        );
+      } finally {
+        if (!_disposed && requestGeneration == _generation) {
+          _speaking.value = false;
+        }
       }
-    }
+    });
   }
 
   @override
   Future<void> stop() async {
-    _generation++;
-    speaking.value = false;
+    ++_generation;
+
+    if (_disposed) return;
+
+    _speaking.value = false;
+
+    // Stop immediately rather than waiting behind queued speech.
     try {
-      await _tts?.stop();
+      await _transport.stop();
     } on Object {
-      // Nothing to stop when no engine exists.
+      // Keep the UI responsive if the audio engine fails to stop.
     }
+  }
+
+  /// Releases provider resources.
+  ///
+  /// Call this when the owning voice service is permanently disposed.
+  Future<void> disposeProvider() async {
+    if (_disposed) return;
+
+    await stop();
+
+    _disposed = true;
+
+    await _transport.dispose();
+
+    _speaking.dispose();
   }
 }
 
-/// App-wide access point so tests and future cloud voices can replace it.
+/// Adapter contract for Eloqia's authenticated backend and audio player.
+///
+/// Implementations must:
+/// - obtain audio from Eloqia's backend;
+/// - keep Cartesia credentials off the client;
+/// - play the returned audio;
+/// - stop active playback when [stop] is called;
+/// - report backend or playback failures instead of switching to local TTS.
+abstract class CloudSpeechTransport {
+  Future<bool> isAvailable();
+
+  Future<void> speak(
+    String text, {
+    required MiaSpeechStyle style,
+    required bool otherSpeaker,
+    required double speedFactor,
+  });
+
+  Future<void> stop();
+
+  Future<void> dispose();
+}
+
+/// Central voice access point.
+///
+/// Configure this with the real backend transport during app initialization.
+/// It deliberately starts unconfigured: it will not silently use a device
+/// voice if the Cartesia transport has not been connected.
 class MiaVoice {
   MiaVoice._();
 
-  static VoiceProvider provider = DeviceVoiceOutputProvider();
+  static VoiceProvider? _provider;
+
+  static VoiceProvider get provider {
+    final VoiceProvider? current = _provider;
+
+    if (current == null) {
+      throw StateError(
+        'MiaVoice is not configured. '
+        'Register CartesiaVoiceOutputProvider with an authenticated '
+        'CloudSpeechTransport during application startup.',
+      );
+    }
+
+    return current;
+  }
+
+  static set provider(VoiceProvider value) {
+    _provider = value;
+  }
+
+  static bool get isConfigured => _provider != null;
 }

@@ -7,8 +7,12 @@ import '../../models/learning_profile.dart';
 
 typedef OidcAccessTokenProvider = Future<String?> Function();
 
+/// A safe, user-facing exception raised by the voice-session service.
 class VoiceSessionException implements Exception {
-  const VoiceSessionException({required this.code, required this.message});
+  const VoiceSessionException({
+    required this.code,
+    required this.message,
+  });
 
   final String code;
   final String message;
@@ -17,6 +21,7 @@ class VoiceSessionException implements Exception {
   String toString() => message;
 }
 
+/// Validated response returned by the Eloqia voice backend.
 class VoiceSessionResponse {
   const VoiceSessionResponse({
     required this.sessionId,
@@ -32,38 +37,54 @@ class VoiceSessionResponse {
   final String participantToken;
   final int expiresInSeconds;
 
-  factory VoiceSessionResponse.fromJson(Map<String, dynamic> json) {
+  factory VoiceSessionResponse.fromJson(
+    Map<String, dynamic> json,
+  ) {
     final dynamic expiry = json['expires_in_seconds'];
-    final String? sessionId = json['session_id'] as String?;
-    final String? roomName = json['room_name'] as String?;
-    final String? liveKitUrl = json['livekit_url'] as String?;
-    final String? participantToken = json['participant_token'] as String?;
+    final dynamic rawSessionId = json['session_id'];
+    final dynamic rawRoomName = json['room_name'];
+    final dynamic rawLiveKitUrl = json['livekit_url'];
+    final dynamic rawParticipantToken = json['participant_token'];
 
-    if (sessionId == null ||
-        roomName == null ||
-        liveKitUrl == null ||
-        participantToken == null ||
+    if (rawSessionId is! String ||
+        rawRoomName is! String ||
+        rawLiveKitUrl is! String ||
+        rawParticipantToken is! String ||
         expiry is! int ||
-        sessionId.isEmpty ||
-        roomName.isEmpty ||
-        liveKitUrl.isEmpty ||
-        participantToken.isEmpty) {
+        rawSessionId.trim().isEmpty ||
+        rawRoomName.trim().isEmpty ||
+        rawParticipantToken.trim().isEmpty ||
+        expiry <= 0) {
       throw const VoiceSessionException(
         code: 'invalid_voice_session_response',
         message: 'La réponse du service vocal est invalide.',
       );
     }
 
+    final Uri? liveKitUri = Uri.tryParse(rawLiveKitUrl);
+
+    if (liveKitUri == null ||
+        liveKitUri.scheme != 'wss' ||
+        !liveKitUri.hasAuthority ||
+        liveKitUri.host.isEmpty ||
+        liveKitUri.userInfo.isNotEmpty) {
+      throw const VoiceSessionException(
+        code: 'invalid_voice_session_response',
+        message: 'L’adresse du service vocal est invalide.',
+      );
+    }
+
     return VoiceSessionResponse(
-      sessionId: sessionId,
-      roomName: roomName,
-      liveKitUrl: liveKitUrl,
-      participantToken: participantToken,
+      sessionId: rawSessionId,
+      roomName: rawRoomName,
+      liveKitUrl: rawLiveKitUrl,
+      participantToken: rawParticipantToken,
       expiresInSeconds: expiry,
     );
   }
 }
 
+/// Common interface for conversational session providers.
 abstract interface class ConversationProvider {
   bool get isConfigured;
 
@@ -77,6 +98,10 @@ abstract interface class ConversationProvider {
   void close();
 }
 
+/// Creates authenticated voice sessions through the Eloqia API.
+///
+/// The client never stores provider API keys.
+/// LiveKit credentials are received only from the backend.
 class VoiceSessionClient implements ConversationProvider {
   VoiceSessionClient({
     required this.apiBaseUri,
@@ -89,43 +114,75 @@ class VoiceSessionClient implements ConversationProvider {
     required OidcAccessTokenProvider? accessTokenProvider,
     http.Client? httpClient,
   }) {
-    const String configuredUrl = String.fromEnvironment('ELOQIA_VOICE_API_URL');
+    const String configuredUrl = String.fromEnvironment(
+      'ELOQIA_VOICE_API_URL',
+    );
 
     return VoiceSessionClient(
-      apiBaseUri: configuredUrl.isEmpty ? null : Uri.tryParse(configuredUrl),
+      apiBaseUri: configuredUrl.isEmpty
+          ? null
+          : Uri.tryParse(configuredUrl),
       accessTokenProvider: accessTokenProvider,
       httpClient: httpClient,
     );
   }
 
+  static const Duration _requestTimeout = Duration(seconds: 20);
+
   final Uri? apiBaseUri;
   final OidcAccessTokenProvider? accessTokenProvider;
+
   http.Client? _httpClient;
+
   final bool _ownsHttpClient;
 
+  bool _closed = false;
+
   @override
-  bool get isConfigured =>
-      apiBaseUri != null &&
-      _isAllowedApiUri(apiBaseUri!) &&
-      accessTokenProvider != null;
+  bool get isConfigured {
+    final Uri? uri = apiBaseUri;
+
+    return !_closed &&
+        uri != null &&
+        _isAllowedApiUri(uri) &&
+        accessTokenProvider != null;
+  }
 
   @override
   String get configurationStatus {
-    final Uri? baseUri = apiBaseUri;
-    if (baseUri == null || !_isAllowedApiUri(baseUri)) {
+    if (_closed) {
+      return 'DISCONNECTED: the voice client has been closed.';
+    }
+
+    final Uri? uri = apiBaseUri;
+
+    if (uri == null || !_isAllowedApiUri(uri)) {
       return 'CONFIGURATION REQUIRED: set the secure voice backend URL.';
     }
+
     if (accessTokenProvider == null) {
       return 'CONFIGURATION REQUIRED: secure account sign-in is not connected.';
     }
+
     return 'CONFIGURED: connection is verified when a session starts.';
   }
+
+  // ---------------------------------------------------------------------------
+  // Start session
+  // ---------------------------------------------------------------------------
 
   @override
   Future<VoiceSessionResponse> startSession({
     required LearningProfile profile,
     required bool voiceConsent,
   }) async {
+    if (_closed) {
+      throw const VoiceSessionException(
+        code: 'voice_client_closed',
+        message: 'Le service vocal a été fermé. Redémarre la connexion.',
+      );
+    }
+
     if (!voiceConsent) {
       throw const VoiceSessionException(
         code: 'voice_consent_required',
@@ -134,6 +191,7 @@ class VoiceSessionClient implements ConversationProvider {
     }
 
     final Uri? baseUri = apiBaseUri;
+
     if (baseUri == null || !_isAllowedApiUri(baseUri)) {
       throw const VoiceSessionException(
         code: 'voice_backend_not_configured',
@@ -141,7 +199,9 @@ class VoiceSessionClient implements ConversationProvider {
       );
     }
 
-    final OidcAccessTokenProvider? tokenProvider = accessTokenProvider;
+    final OidcAccessTokenProvider? tokenProvider =
+        accessTokenProvider;
+
     if (tokenProvider == null) {
       throw const VoiceSessionException(
         code: 'authentication_not_configured',
@@ -149,7 +209,24 @@ class VoiceSessionClient implements ConversationProvider {
       );
     }
 
-    final String? accessToken = await tokenProvider();
+    final String? accessToken;
+
+    try {
+      accessToken = await tokenProvider().timeout(_requestTimeout);
+    } on TimeoutException {
+      throw const VoiceSessionException(
+        code: 'authentication_timeout',
+        message: 'La vérification du compte prend trop de temps.',
+      );
+    } on VoiceSessionException {
+      rethrow;
+    } on Object {
+      throw const VoiceSessionException(
+        code: 'authentication_failed',
+        message: 'Impossible de vérifier ton compte pour le moment.',
+      );
+    }
+
     if (accessToken == null || accessToken.trim().isEmpty) {
       throw const VoiceSessionException(
         code: 'authentication_required',
@@ -158,24 +235,26 @@ class VoiceSessionClient implements ConversationProvider {
     }
 
     final Uri endpoint = baseUri.resolve('/v1/voice/sessions');
-    final http.Client httpClient = _httpClient ??= http.Client();
+
+    final http.Client client = _httpClient ??= http.Client();
+
     late final http.Response response;
 
     try {
-      response = await httpClient
+      response = await client
           .post(
             endpoint,
             headers: <String, String>{
-              'Authorization': 'Bearer $accessToken',
+              'Authorization': 'Bearer ${accessToken.trim()}',
               'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
-            body: jsonEncode(<String, dynamic>{
-              'voice_consent': true,
-              'context': _learningContext(profile),
-            }),
+
+            // FastAPI expects LearningContext fields at the root.
+            // Voice consent is enforced locally before making the request.
+            body: jsonEncode(_learningContext(profile)),
           )
-          .timeout(const Duration(seconds: 20));
+          .timeout(_requestTimeout);
     } on TimeoutException {
       throw const VoiceSessionException(
         code: 'voice_service_timeout',
@@ -186,19 +265,41 @@ class VoiceSessionClient implements ConversationProvider {
         code: 'voice_service_unreachable',
         message: 'Le service vocal est momentanément inaccessible.',
       );
+    } on VoiceSessionException {
+      rethrow;
+    } on Object {
+      throw const VoiceSessionException(
+        code: 'voice_request_failed',
+        message: 'Impossible de préparer la session vocale.',
+      );
     }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (_closed) {
+      throw const VoiceSessionException(
+        code: 'voice_client_closed',
+        message: 'Le service vocal a été fermé.',
+      );
+    }
+
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
       throw _readServerError(response);
     }
 
     try {
       final dynamic decoded = jsonDecode(response.body);
+
       if (decoded is! Map) {
-        throw const FormatException('Expected a JSON object');
+        throw const FormatException(
+          'Expected a JSON object.',
+        );
       }
 
-      return VoiceSessionResponse.fromJson(Map<String, dynamic>.from(decoded));
+      return VoiceSessionResponse.fromJson(
+        Map<String, dynamic>.from(decoded),
+      );
+    } on VoiceSessionException {
+      rethrow;
     } on Object {
       throw const VoiceSessionException(
         code: 'invalid_voice_session_response',
@@ -207,16 +308,34 @@ class VoiceSessionClient implements ConversationProvider {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // HTTP lifecycle
+  // ---------------------------------------------------------------------------
+
   @override
   void close() {
-    if (_ownsHttpClient && _httpClient != null) {
-      _httpClient!.close();
+    if (_closed) {
+      return;
+    }
+
+    _closed = true;
+
+    if (_ownsHttpClient) {
+      _httpClient?.close();
       _httpClient = null;
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // API URL validation
+  // ---------------------------------------------------------------------------
+
   static bool _isAllowedApiUri(Uri uri) {
-    if (!uri.hasAuthority || uri.host.isEmpty) {
+    if (!uri.hasAuthority ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment) {
       return false;
     }
 
@@ -225,10 +344,21 @@ class VoiceSessionClient implements ConversationProvider {
     }
 
     return uri.scheme == 'http' &&
-        const <String>{'localhost', '127.0.0.1', '10.0.2.2'}.contains(uri.host);
+        const <String>{
+          'localhost',
+          '127.0.0.1',
+          '10.0.2.2',
+          '::1',
+        }.contains(uri.host);
   }
 
-  static Map<String, dynamic> _learningContext(LearningProfile profile) {
+  // ---------------------------------------------------------------------------
+  // Learning context
+  // ---------------------------------------------------------------------------
+
+  static Map<String, dynamic> _learningContext(
+    LearningProfile profile,
+  ) {
     const Set<String> allowedLevels = <String>{
       'A1',
       'A2',
@@ -237,6 +367,7 @@ class VoiceSessionClient implements ConversationProvider {
       'C1',
       'C2',
     };
+
     const Set<String> allowedGoals = <String>{
       'speaking',
       'school',
@@ -246,18 +377,21 @@ class VoiceSessionClient implements ConversationProvider {
       'career',
       'culture',
     };
+
     const Set<String> allowedCorrections = <String>{
       'gentle',
       'balanced',
       'direct',
       'deep',
     };
+
     const Set<String> allowedPaces = <String>{
       'relaxed',
       'regular',
       'intensive',
       'adaptive',
     };
+
     const Set<String> allowedInterests = <String>{
       'technology',
       'music',
@@ -273,55 +407,92 @@ class VoiceSessionClient implements ConversationProvider {
       'space',
     };
 
+    final String name = profile.name.trim();
     final String level = profile.currentLevel.trim().toUpperCase();
     final String goal = profile.primaryGoal.trim();
-    final String correction = profile.preferredCorrectionStyle.trim();
+    final String correction =
+        profile.preferredCorrectionStyle.trim();
     final String pace = profile.learningPace.trim();
 
+    final List<String> interests = profile.interests
+        .where(allowedInterests.contains)
+        .toSet()
+        .take(8)
+        .toList(growable: false);
+
     return <String, dynamic>{
-      if (profile.name.trim().isNotEmpty) 'learner_name': profile.name.trim(),
+      if (name.isNotEmpty) 'learner_name': name,
       'cefr_level': allowedLevels.contains(level) ? level : 'A1',
       if (allowedGoals.contains(goal)) 'primary_goal': goal,
       'correction_style': allowedCorrections.contains(correction)
           ? correction
           : 'balanced',
-      'learning_pace': allowedPaces.contains(pace) ? pace : 'adaptive',
-      'interests': profile.interests
-          .where(allowedInterests.contains)
-          .toSet()
-          .take(8)
-          .toList(growable: false),
+      'learning_pace': allowedPaces.contains(pace)
+          ? pace
+          : 'adaptive',
+      'interests': interests,
     };
   }
 
-  static VoiceSessionException _readServerError(http.Response response) {
+  // ---------------------------------------------------------------------------
+  // Server error handling
+  // ---------------------------------------------------------------------------
+
+  static VoiceSessionException _readServerError(
+    http.Response response,
+  ) {
     String? code;
+
     try {
       final dynamic decoded = jsonDecode(response.body);
-      if (decoded is Map && decoded['detail'] is Map) {
-        code = (decoded['detail'] as Map)['code'] as String?;
+
+      if (decoded is Map) {
+        final dynamic detail = decoded['detail'];
+
+        if (detail is Map && detail['code'] is String) {
+          code = (detail['code'] as String).trim();
+        }
       }
     } on Object {
-      code = null;
+      // Never expose raw server responses to the UI.
     }
 
-    if (response.statusCode == 401) {
-      return const VoiceSessionException(
-        code: 'authentication_required',
-        message: 'Ta session a expiré. Reconnecte-toi puis réessaie.',
-      );
-    }
+    switch (response.statusCode) {
+      case 401:
+        return const VoiceSessionException(
+          code: 'authentication_required',
+          message: 'Ta session a expiré. Reconnecte-toi puis réessaie.',
+        );
 
-    if (response.statusCode == 503) {
-      return const VoiceSessionException(
-        code: 'voice_service_not_ready',
-        message: 'Le service vocal attend encore sa configuration sécurisée.',
-      );
-    }
+      case 403:
+        return const VoiceSessionException(
+          code: 'voice_access_forbidden',
+          message: 'Tu n’as pas accès à ce service vocal.',
+        );
 
-    return VoiceSessionException(
-      code: code ?? 'voice_session_failed',
-      message: 'Mia ne peut pas démarrer cette session pour le moment.',
-    );
+      case 422:
+        return const VoiceSessionException(
+          code: 'invalid_voice_session_request',
+          message: 'Les informations de la session vocale sont invalides.',
+        );
+
+      case 429:
+        return const VoiceSessionException(
+          code: 'voice_rate_limited',
+          message: 'Trop de demandes vocales. Attends un instant avant de réessayer.',
+        );
+
+      case 503:
+        return const VoiceSessionException(
+          code: 'voice_service_not_ready',
+          message: 'Le service vocal attend encore sa configuration sécurisée.',
+        );
+
+      default:
+        return VoiceSessionException(
+          code: code ?? 'voice_session_failed',
+          message: 'Mia ne peut pas démarrer cette session pour le moment.',
+        );
+    }
   }
 }
