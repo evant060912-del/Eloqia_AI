@@ -145,3 +145,20 @@ class VoiceSessionResponse(BaseModel):
     expires_in_seconds: int = Field(
         gt=0,
     )
+
+class SpeechRequest(BaseModel):
+    """One short line spoken by Mia (or another speaker in a dialogue)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    text: str = Field(min_length=1, max_length=600)
+    style: Literal[
+        "warm",
+        "excited",
+        "encouraging",
+        "playful",
+        "serious",
+        "calm",
+    ] = "warm"
+    other_speaker: bool = False
+    speed_factor: float = Field(default=1.0, ge=0.5, le=2.0)

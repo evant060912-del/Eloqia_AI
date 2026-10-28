@@ -107,6 +107,13 @@ class Settings:
     voice_session_ttl_seconds: int
     allowed_origins: tuple[str, ...]
 
+    # ------------------------------------------------------------------
+    # Short speech ("Hear Mia" buttons)
+    # ------------------------------------------------------------------
+
+    cartesia_api_version: str = "2026-08-14"
+    cartesia_secondary_voice_id: str = ""
+
     @classmethod
     def from_env(cls) -> Settings:
         origins = tuple(
@@ -191,6 +198,13 @@ class Settings:
                 900,
             ),
             allowed_origins=origins,
+            cartesia_api_version=_value(
+                "CARTESIA_API_VERSION",
+                "2026-08-14",
+            ),
+            cartesia_secondary_voice_id=_value(
+                "CARTESIA_SECONDARY_VOICE_ID",
+            ),
         )
 
     # ------------------------------------------------------------------

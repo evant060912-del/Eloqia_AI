@@ -213,33 +213,64 @@ abstract class CloudSpeechTransport {
   Future<void> dispose();
 }
 
+/// Voice used while the Cartesia voice is not connected yet.
+///
+/// It stays silent and reports itself as unavailable, so "Hear Mia" buttons
+/// are disabled instead of crashing the screen. It never pretends to be Mia's
+/// cloud voice and never switches to a device voice.
+class UnconfiguredVoiceProvider implements VoiceProvider {
+  UnconfiguredVoiceProvider();
+
+  final ValueNotifier<bool> _speaking = ValueNotifier<bool>(false);
+
+  @override
+  ValueListenable<bool> get speaking => _speaking;
+
+  @override
+  String get description => 'Mia · Cartesia voice not connected yet';
+
+  @override
+  Future<bool> isAvailable() async => false;
+
+  @override
+  Future<void> speak(
+    String text, {
+    MiaSpeechStyle style = MiaSpeechStyle.warm,
+    bool otherSpeaker = false,
+    double speedFactor = 1.0,
+  }) async {
+    debugPrint(
+      'MiaVoice: Cartesia voice not configured, skipped speech. '
+      'Call MiaVoice.configure(...) at startup.',
+    );
+  }
+
+  @override
+  Future<void> stop() async {}
+}
+
 /// Central voice access point.
 ///
-/// Configure this with the real backend transport during app initialization.
-/// It deliberately starts unconfigured: it will not silently use a device
-/// voice if the Cartesia transport has not been connected.
+/// Until [configure] (or the [provider] setter) is called, Mia is silent but
+/// the app keeps working. Reading [provider] never throws: an exception here
+/// is thrown inside widget builds and shows Flutter's red error screen.
 class MiaVoice {
   MiaVoice._();
 
+  static final VoiceProvider _unconfigured = UnconfiguredVoiceProvider();
+
   static VoiceProvider? _provider;
 
-  static VoiceProvider get provider {
-    final VoiceProvider? current = _provider;
-
-    if (current == null) {
-      throw StateError(
-        'MiaVoice is not configured. '
-        'Register CartesiaVoiceOutputProvider with an authenticated '
-        'CloudSpeechTransport during application startup.',
-      );
-    }
-
-    return current;
-  }
+  static VoiceProvider get provider => _provider ?? _unconfigured;
 
   static set provider(VoiceProvider value) {
     _provider = value;
   }
 
   static bool get isConfigured => _provider != null;
+
+  /// Connects Mia's Cartesia voice through the Eloqia backend.
+  static void configure(CloudSpeechTransport transport) {
+    _provider = CartesiaVoiceOutputProvider(transport: transport);
+  }
 }
