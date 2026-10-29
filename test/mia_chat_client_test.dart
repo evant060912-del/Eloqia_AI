@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:eloqia_ai/models/learning_profile.dart';
 import 'package:eloqia_ai/services/mia/mia_chat_client.dart';
+import 'package:eloqia_ai/models/learning_memory.dart';
+import 'package:eloqia_ai/services/learning/learning_memory_service.dart';
 import 'package:eloqia_ai/services/mia/mia_learning_notes.dart';
+import 'package:eloqia_ai/services/mia/mia_session_recorder.dart';
 import 'package:eloqia_ai/services/voice/voice_output_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -163,21 +166,30 @@ void main() {
     );
   });
 
-  group('MiaLearningNotes', () {
+  group('MiaLearningNotes (on the existing MemoryService)', () {
     setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
     test(
-      'keeps short notes, counts repeats and forgets after 30 days',
+      'stores short notes once, reinforces repeats, expires after 30 days',
       () async {
-        DateTime now = DateTime(2026, 11, 1);
+        DateTime now = DateTime.now();
         final MiaLearningNotes notes = MiaLearningNotes(clock: () => now);
         final MiaChatReply reply = MiaChatReply.fromJson(_answer());
 
-        await notes.rememberFrom(reply);
-        await notes.rememberFrom(reply);
-        final List<MiaLearningNote> saved = await notes.load();
+        await notes.rememberFrom(reply, sessionId: 's1');
+        await notes.rememberFrom(reply, sessionId: 's1');
+        final List<LearningMemory> saved = await notes.load();
         expect(saved.length, 2);
-        expect(saved.every((MiaLearningNote n) => n.count == 2), isTrue);
+        expect(
+          saved.every((LearningMemory m) => m.reinforcementCount == 1),
+          isTrue,
+        );
+        expect(
+          saved.every(
+            (LearningMemory m) => m.tags.contains(MiaLearningNotes.tag),
+          ),
+          isTrue,
+        );
         expect(await notes.difficultiesForMia(), hasLength(2));
 
         now = now.add(const Duration(days: 31));
@@ -185,16 +197,117 @@ void main() {
       },
     );
 
-    test('safety replies are never remembered and clear erases all', () async {
-      final MiaLearningNotes notes = MiaLearningNotes();
-      await notes.rememberFrom(
-        MiaChatReply.fromJson(_answer()..['safety_redirect'] = true),
+    test('lesson weaknesses are shared with Mia', () async {
+      await MemoryService.createMemory(
+        id: 'lesson-weak-grammar-past',
+        type: LearningMemoryType.weakness,
+        source: LearningMemorySource.session,
+        content: 'Missed past simple questions in a grammar lesson.',
+        tutorId: 'mia',
+        importance: 55,
       );
-      expect(await notes.load(), isEmpty);
+      final List<String> forMia = await MiaLearningNotes().difficultiesForMia();
+      expect(
+        forMia,
+        contains('Missed past simple questions in a grammar lesson.'),
+      );
+    });
 
-      await notes.rememberFrom(MiaChatReply.fromJson(_answer()));
-      await notes.clear();
-      expect(await notes.load(), isEmpty);
+    test(
+      'safety replies are never remembered and clear only removes chat notes',
+      () async {
+        final MiaLearningNotes notes = MiaLearningNotes();
+        await notes.rememberFrom(
+          MiaChatReply.fromJson(_answer()..['safety_redirect'] = true),
+        );
+        expect(await notes.load(), isEmpty);
+
+        await MemoryService.createMemory(
+          id: 'lesson-weak-x',
+          type: LearningMemoryType.weakness,
+          source: LearningMemorySource.session,
+          content: 'Lesson weakness',
+          tutorId: 'mia',
+        );
+        await notes.rememberFrom(MiaChatReply.fromJson(_answer()));
+        await notes.clear();
+        expect(await notes.load(), isEmpty);
+        expect(await MemoryService.getMemory('lesson-weak-x'), isNotNull);
+      },
+    );
+  });
+
+  group('Session review and XP', () {
+    test(
+      'summary parsing keeps evidence items and rejects empty summaries',
+      () {
+        final MiaSessionSummary summary = MiaSessionSummary.fromJson(
+          <String, dynamic>{
+            'summary': 'We talked about films.',
+            'practiced': <String>['past simple'],
+            'strengths': <String>['Clear answers'],
+            'improvements': <Map<String, String>>[
+              <String, String>{
+                'evidence': 'I goed',
+                'suggestion': 'I went',
+                'explanation': 'Irregular verb.',
+              },
+            ],
+            'useful_expressions': <String>['It was a blast'],
+            'next_step': 'Review irregular verbs.',
+          },
+        );
+        expect(summary.improvements.single.suggestion, 'I went');
+        expect(summary.practiced, <String>['past simple']);
+        expect(
+          () => MiaSessionSummary.fromJson(<String, dynamic>{'summary': ''}),
+          throwsA(isA<MiaChatException>()),
+        );
+      },
+    );
+
+    test('XP needs real learner messages and is capped', () {
+      List<MiaChatTurn> turns(int n, String text) => <MiaChatTurn>[
+        for (int i = 0; i < n; i++) ...<MiaChatTurn>[
+          const MiaChatTurn(fromLearner: false, text: 'Question?'),
+          MiaChatTurn(fromLearner: true, text: text),
+        ],
+      ];
+      expect(
+        MiaSessionRecorder.xpFor(
+          mode: MiaChatMode.conversation,
+          history: turns(2, 'I like football a lot'),
+        ),
+        0,
+      );
+      expect(
+        MiaSessionRecorder.xpFor(
+          mode: MiaChatMode.conversation,
+          history: turns(5, 'ok'),
+        ),
+        0,
+      );
+      expect(
+        MiaSessionRecorder.xpFor(
+          mode: MiaChatMode.roleplay,
+          history: turns(4, 'Can I have a latte'),
+        ),
+        20,
+      );
+      expect(
+        MiaSessionRecorder.xpFor(
+          mode: MiaChatMode.conversation,
+          history: turns(20, 'This is a real sentence'),
+        ),
+        MiaSessionRecorder.maxXp,
+      );
+      expect(
+        MiaSessionRecorder.xpFor(
+          mode: MiaChatMode.writing,
+          history: turns(1, 'My essay about school life'),
+        ),
+        MiaSessionRecorder.writingXp,
+      );
     });
   });
 }

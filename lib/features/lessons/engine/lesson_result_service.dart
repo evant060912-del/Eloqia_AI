@@ -160,7 +160,7 @@ class LessonResultService {
             ),
             lastActivity: DateTime.now().toUtc(),
           );
-      updated = _withStreak(updated, base);
+      updated = withStreak(updated, base);
       saved = await LearningProgressService.save(updated);
       if (saved != null) {
         xpAwarded = summary.totalXp;
@@ -206,7 +206,8 @@ class LessonResultService {
     );
   }
 
-  static Progress _withStreak(Progress updated, Progress base) {
+  /// Shared streak rule (also used by Mia conversations).
+  static Progress withStreak(Progress updated, Progress base) {
     final DateTime now = DateTime.now().toUtc();
     final DateTime? last = base.lastActivity?.toUtc();
     final bool sameDay =

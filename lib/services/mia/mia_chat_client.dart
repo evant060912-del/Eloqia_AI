@@ -165,12 +165,7 @@ class MiaChatReply {
       reply: reply,
       tone: _tone(json['tone']),
       corrections: _list(json['corrections'], MiaCorrection.fromJson),
-      usefulExpressions: (json['useful_expressions'] is List)
-          ? (json['useful_expressions'] as List)
-                .map((Object? e) => e.toString())
-                .where((String e) => e.isNotEmpty)
-                .toList(growable: false)
-          : const <String>[],
+      usefulExpressions: _strings(json['useful_expressions']),
       observations: _list(json['observations'], MiaSkillObservation.fromJson),
       writingScore: score,
       scenarioComplete: json['scenario_complete'] == true,
@@ -186,6 +181,60 @@ class MiaChatReply {
   final MiaWritingScore? writingScore;
   final bool scenarioComplete;
   final bool safetyRedirect;
+}
+
+/// One improvement point quoted from what the learner really wrote.
+@immutable
+class MiaEvidenceItem {
+  const MiaEvidenceItem({
+    required this.evidence,
+    required this.suggestion,
+    required this.explanation,
+  });
+
+  factory MiaEvidenceItem.fromJson(Map<String, dynamic> json) =>
+      MiaEvidenceItem(
+        evidence: _string(json['evidence']),
+        suggestion: _string(json['suggestion']),
+        explanation: _string(json['explanation']),
+      );
+
+  final String evidence;
+  final String suggestion;
+  final String explanation;
+}
+
+/// End-of-session review returned by `POST /v1/mia/chat/summary`.
+@immutable
+class MiaSessionSummary {
+  const MiaSessionSummary({
+    required this.summary,
+    this.practiced = const <String>[],
+    this.strengths = const <String>[],
+    this.improvements = const <MiaEvidenceItem>[],
+    this.usefulExpressions = const <String>[],
+    this.nextStep = '',
+  });
+
+  factory MiaSessionSummary.fromJson(Map<String, dynamic> json) {
+    final String summary = _string(json['summary']);
+    if (summary.isEmpty) throw const MiaChatException('invalid_reply');
+    return MiaSessionSummary(
+      summary: summary,
+      practiced: _strings(json['practiced']),
+      strengths: _strings(json['strengths']),
+      improvements: _list(json['improvements'], MiaEvidenceItem.fromJson),
+      usefulExpressions: _strings(json['useful_expressions']),
+      nextStep: _string(json['next_step']),
+    );
+  }
+
+  final String summary;
+  final List<String> practiced;
+  final List<String> strengths;
+  final List<MiaEvidenceItem> improvements;
+  final List<String> usefulExpressions;
+  final String nextStep;
 }
 
 class MiaChatException implements Exception {
@@ -204,6 +253,8 @@ class MiaChatException implements Exception {
     'authentication_not_configured' ||
     'bearer_token_required' => 'Connexion requise pour discuter avec Mia.',
     'network' => 'Impossible de joindre le serveur de Mia.',
+    'mia_summary_unavailable' =>
+      'Le bilan de séance n\'a pas pu être préparé. Réessaie dans un instant.',
     _ => 'Mia ne peut pas répondre pour le moment. Réessaie dans un instant.',
   };
 
@@ -222,6 +273,7 @@ class MiaChatClient {
   static const int maxTurnChars = 1200;
   static const int maxWritingChars = 4000;
   static const int maxHistoryTurns = 20;
+  static const int maxSummaryTurns = 60;
 
   /// Uses `--dart-define=ELOQIA_API_URL=...`, or the voice URL already used
   /// for "Hear Mia" (`ELOQIA_VOICE_API_URL`). Returns null when unset.
@@ -336,11 +388,43 @@ class MiaChatClient {
       knownDifficulties: knownDifficulties,
     );
 
+    final Object? decoded = await _post('/v1/mia/chat', body);
+
+    if (decoded is! Map) throw const MiaChatException('invalid_reply');
+    return MiaChatReply.fromJson(Map<String, dynamic>.from(decoded));
+  }
+
+  /// Asks Mia for an end-of-session review (last [maxSummaryTurns] turns).
+  Future<MiaSessionSummary> summarize({
+    required List<MiaChatTurn> history,
+    required MiaChatMode mode,
+    required LearningProfile profile,
+    MiaScenario? scenario,
+  }) async {
+    final List<MiaChatTurn> recent = history.length > maxSummaryTurns
+        ? history.sublist(history.length - maxSummaryTurns)
+        : history;
+    final Object? decoded =
+        await _post('/v1/mia/chat/summary', <String, dynamic>{
+          'mode': mode.apiValue,
+          if (mode == MiaChatMode.roleplay && scenario != null)
+            'scenario': scenario.apiValue,
+          'context': VoiceSessionClient.learningContextFor(profile),
+          'history': recent
+              .where((MiaChatTurn t) => t.text.trim().isNotEmpty)
+              .map((MiaChatTurn t) => t.toJson())
+              .toList(growable: false),
+        });
+    if (decoded is! Map) throw const MiaChatException('invalid_reply');
+    return MiaSessionSummary.fromJson(Map<String, dynamic>.from(decoded));
+  }
+
+  Future<Object?> _post(String path, Map<String, dynamic> body) async {
     final http.Response response;
     try {
       response = await _httpClient
           .post(
-            _endpoint('/v1/mia/chat'),
+            _endpoint(path),
             headers: await _headers(),
             body: jsonEncode(body),
           )
@@ -366,9 +450,7 @@ class MiaChatClient {
       }
       throw MiaChatException(code);
     }
-
-    if (decoded is! Map) throw const MiaChatException('invalid_reply');
-    return MiaChatReply.fromJson(Map<String, dynamic>.from(decoded));
+    return decoded;
   }
 
   void close() => _httpClient.close();
@@ -384,6 +466,14 @@ MiaSpeechStyle _tone(Object? value) {
     if (style.name == value) return style;
   }
   return MiaSpeechStyle.warm;
+}
+
+List<String> _strings(Object? raw) {
+  if (raw is! List) return const <String>[];
+  return raw
+      .map((Object? e) => e is String ? e.trim() : '')
+      .where((String e) => e.isNotEmpty)
+      .toList(growable: false);
 }
 
 List<T> _list<T>(Object? raw, T Function(Map<String, dynamic>) parse) {

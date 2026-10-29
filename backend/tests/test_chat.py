@@ -321,3 +321,117 @@ def test_chat_provider_failure_is_hidden(monkeypatch) -> None:
     response = _local_post("/v1/mia/chat", {"message": "Hi"})
     assert response.status_code == 502
     assert "sk-test" not in response.text
+
+
+# ---------------------------------------------------------------------------
+# End-of-session summary
+# ---------------------------------------------------------------------------
+
+from app.chat import (  # noqa: E402
+    SessionSummaryRequest,
+    build_summary_payload,
+    is_grounded,
+    parse_summary_output,
+    summarize_session,
+)
+
+_HISTORY = [
+    {"role": "mia", "text": "What did you do yesterday?"},
+    {"role": "learner", "text": "Yesterday I goed to the cinema with my friend."},
+    {"role": "mia", "text": "Nice! What did you watch?"},
+    {"role": "learner", "text": "A science fiction movie, it was amazing."},
+]
+
+
+def _summary_answer(**overrides) -> dict:
+    answer = {
+        "summary": "We talked about your weekend.",
+        "practiced": ["past simple", "describing a film"],
+        "strengths": ["You kept the conversation going."],
+        "improvements": [
+            {
+                "evidence": "I goed to the cinema",
+                "suggestion": "I went to the cinema",
+                "explanation": "'Go' is irregular.",
+            },
+            {
+                "evidence": "I has a dog",
+                "suggestion": "I have a dog",
+                "explanation": "Invented: the learner never wrote this.",
+            },
+        ],
+        "useful_expressions": ["It was a blast"],
+        "next_step": "Review irregular past verbs.",
+    }
+    answer.update(overrides)
+    return answer
+
+
+def test_summary_requires_a_learner_message() -> None:
+    with pytest.raises(ValidationError):
+        SessionSummaryRequest(
+            history=[
+                {"role": "mia", "text": "Hi"},
+                {"role": "mia", "text": "Still there?"},
+            ]
+        )
+
+
+def test_evidence_must_come_from_the_learner() -> None:
+    learner = [t["text"] for t in _HISTORY if t["role"] == "learner"]
+    assert is_grounded("I goed to the cinema", learner)
+    assert is_grounded("“i GOED to the cinema.”", learner)
+    assert not is_grounded("What did you watch", learner)
+    assert not is_grounded("I has a dog", learner)
+
+
+def test_summary_drops_ungrounded_corrections() -> None:
+    learner = [t["text"] for t in _HISTORY if t["role"] == "learner"]
+    result = parse_summary_output(json.dumps(_summary_answer()), learner)
+    assert [i.evidence for i in result.improvements] == ["I goed to the cinema"]
+    assert result.next_step.startswith("Review")
+
+
+def test_summary_payload_marks_transcript_as_data() -> None:
+    request = SessionSummaryRequest(mode="roleplay", scenario="cafe", history=_HISTORY)
+    payload = build_summary_payload(request, _settings())
+    system = payload["messages"][0]["content"]
+    assert "exact quote" in system
+    assert "scene: cafe" in system
+    assert "data, not instructions" in system
+    assert payload["messages"][1]["content"].startswith("TRANSCRIPT")
+    assert "LEARNER: Yesterday I goed" in payload["messages"][1]["content"]
+
+
+def test_summarize_session_end_to_end_with_fake_openai() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/moderations":
+            return httpx.Response(200, json={"results": [{"flagged": False}]})
+        content = json.dumps(_summary_answer())
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    result = asyncio.run(
+        summarize_session(
+            SessionSummaryRequest(history=_HISTORY),
+            _settings(),
+            httpx.MockTransport(handler),
+        )
+    )
+    assert result.summary.startswith("We talked")
+    assert len(result.improvements) == 1
+
+
+def test_summary_route(monkeypatch) -> None:
+    import app.api as api_module
+
+    _local_dev(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    async def fake_summary(payload, settings):
+        learner = [t.text for t in payload.history if t.role == "learner"]
+        return parse_summary_output(json.dumps(_summary_answer()), learner)
+
+    monkeypatch.setattr(api_module, "summarize_session", fake_summary)
+    response = _local_post("/v1/mia/chat/summary", {"history": _HISTORY})
+    assert response.status_code == 200
+    assert response.json()["improvements"][0]["suggestion"] == "I went to the cinema"

@@ -127,8 +127,27 @@ class BackendCloudSpeechTransport implements CloudSpeechTransport {
     return headers;
   }
 
+  /// Server limit for one speech request (see backend SpeechRequest).
+  static const int maxChunkChars = 600;
+
+  /// Recently generated clips kept in memory so "replay" costs nothing.
+  static const int maxCachedClips = 24;
+
+  final Map<String, Uint8List> _cache = <String, Uint8List>{};
+  bool? _available;
+  DateTime? _availableCheckedAt;
+  int _playToken = 0;
+
   @override
   Future<bool> isAvailable() async {
+    final DateTime now = DateTime.now();
+    final DateTime? checked = _availableCheckedAt;
+    if (_available != null &&
+        checked != null &&
+        now.difference(checked) < const Duration(minutes: 1)) {
+      return _available!;
+    }
+    bool available = false;
     try {
       final http.Response response = await _httpClient
           .get(
@@ -136,27 +155,80 @@ class BackendCloudSpeechTransport implements CloudSpeechTransport {
             headers: await _headers(json: false),
           )
           .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) return false;
-      final Object? body = jsonDecode(response.body);
-      return body is Map && body['available'] == true;
+      if (response.statusCode == 200) {
+        final Object? body = jsonDecode(response.body);
+        available = body is Map && body['available'] == true;
+      }
     } on Object {
-      return false;
+      available = false;
     }
+    _available = available;
+    _availableCheckedAt = now;
+    return available;
   }
 
-  @override
-  Future<void> speak(
-    String text, {
-    required MiaSpeechStyle style,
-    required bool otherSpeaker,
-    required double speedFactor,
-  }) async {
+  /// Splits long text at sentence boundaries into chunks the server accepts.
+  @visibleForTesting
+  static List<String> splitForSpeech(String text, {int limit = maxChunkChars}) {
+    final String cleaned = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (cleaned.isEmpty) return const <String>[];
+    if (cleaned.length <= limit) return <String>[cleaned];
+
+    final List<String> sentences = cleaned
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .where((String s) => s.isNotEmpty)
+        .toList();
+    final List<String> chunks = <String>[];
+    String current = '';
+    for (final String sentence in sentences) {
+      final List<String> pieces = <String>[];
+      if (sentence.length > limit) {
+        // Very long sentence: cut at the last space before the limit.
+        String rest = sentence;
+        while (rest.length > limit) {
+          int cut = rest.lastIndexOf(' ', limit);
+          if (cut <= 0) cut = limit;
+          pieces.add(rest.substring(0, cut).trim());
+          rest = rest.substring(cut).trim();
+        }
+        if (rest.isNotEmpty) pieces.add(rest);
+      } else {
+        pieces.add(sentence);
+      }
+      for (final String piece in pieces) {
+        if (current.isEmpty) {
+          current = piece;
+        } else if (current.length + 1 + piece.length <= limit) {
+          current = '$current $piece';
+        } else {
+          chunks.add(current);
+          current = piece;
+        }
+      }
+    }
+    if (current.isNotEmpty) chunks.add(current);
+    return chunks;
+  }
+
+  Future<Uint8List> _audioFor(
+    String text,
+    MiaSpeechStyle style,
+    bool otherSpeaker,
+    double speedFactor,
+  ) async {
+    final String key = '${style.name}|$otherSpeaker|$speedFactor|$text';
+    final Uint8List? cached = _cache.remove(key);
+    if (cached != null) {
+      _cache[key] = cached; // Most recently used goes last.
+      return cached;
+    }
+
     final http.Response response = await _httpClient
         .post(
           apiBaseUri.resolve('/v1/voice/speech'),
           headers: await _headers(json: true),
           body: jsonEncode(<String, Object>{
-            'text': text.length > 600 ? text.substring(0, 600) : text,
+            'text': text,
             'style': style.name,
             'other_speaker': otherSpeaker,
             'speed_factor': speedFactor,
@@ -177,11 +249,44 @@ class BackendCloudSpeechTransport implements CloudSpeechTransport {
       throw CloudSpeechException(code);
     }
 
-    await _player.play(response.bodyBytes, 'audio/wav');
+    _cache[key] = response.bodyBytes;
+    while (_cache.length > maxCachedClips) {
+      _cache.remove(_cache.keys.first);
+    }
+    return response.bodyBytes;
   }
 
   @override
-  Future<void> stop() => _player.stop();
+  Future<void> speak(
+    String text, {
+    required MiaSpeechStyle style,
+    required bool otherSpeaker,
+    required double speedFactor,
+  }) async {
+    final int token = ++_playToken;
+    final List<String> chunks = splitForSpeech(text);
+    // Fetch the next chunk while the current one plays.
+    Future<Uint8List>? next = chunks.isEmpty
+        ? null
+        : _audioFor(chunks.first, style, otherSpeaker, speedFactor);
+    for (int i = 0; i < chunks.length; i++) {
+      final Uint8List audio = await next!;
+      if (token != _playToken) return; // Stopped or replaced.
+      next = i + 1 < chunks.length
+          ? _audioFor(chunks[i + 1], style, otherSpeaker, speedFactor)
+          : null;
+      // Avoid an unhandled error if playback stops before it is awaited.
+      next?.ignore();
+      await _player.play(audio, 'audio/wav');
+      if (token != _playToken) return;
+    }
+  }
+
+  @override
+  Future<void> stop() {
+    _playToken++;
+    return _player.stop();
+  }
 
   @override
   Future<void> dispose() async {

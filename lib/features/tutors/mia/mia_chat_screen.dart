@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../models/learning_profile.dart';
 import '../../../services/mia/mia_chat_client.dart';
 import '../../../services/mia/mia_learning_notes.dart';
+import '../../../services/mia/mia_session_recorder.dart';
 import '../../../services/voice/voice_output_provider.dart';
 import '../../../services/voice/voice_session_client.dart'
     show OidcAccessTokenProvider;
 import '../../../theme/app_colors.dart';
+import 'mia_session_summary_screen.dart';
 import 'widgets/mia_presence.dart';
 
 /// Large discussion screen with Mia's AI brain (turn-by-turn).
@@ -48,6 +50,9 @@ class _ChatEntry {
   final String text;
   final MiaChatReply? reply;
 
+  /// A learner message whose answer failed: it can be sent again.
+  bool failed = false;
+
   bool get isInfo => !fromLearner && reply == null;
 }
 
@@ -65,8 +70,15 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
   MiaImmersion _immersion = MiaImmersion.guided;
 
   bool _thinking = false;
+  bool _endingSession = false;
   bool _autoSpeak = true;
   MiaPresenceState _miaState = MiaPresenceState.idle;
+
+  /// Changes whenever a new session starts: late answers from an older
+  /// session are ignored instead of appearing in the new one.
+  int _generation = 0;
+  late String _sessionId;
+  late DateTime _sessionStart;
 
   @override
   void initState() {
@@ -78,11 +90,32 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
           accessTokenProvider: widget.accessTokenProvider,
         );
     _notes = widget.notes ?? MiaLearningNotes();
-    _entries.add(_ChatEntry.info(_introFor(_mode)));
+    _startSession();
+  }
+
+  /// Starts a fresh session with Mia's opening message.
+  void _startSession({String? opening}) {
+    _generation++;
+    _sessionId =
+        'mia-${_mode.apiValue}-${DateTime.now().toUtc().microsecondsSinceEpoch}';
+    _sessionStart = DateTime.now();
+    _thinking = false;
+    _miaState = MiaPresenceState.idle;
+    _entries
+      ..clear()
+      ..add(
+        _ChatEntry.mia(
+          MiaChatReply(
+            reply: opening ?? _introFor(_mode),
+            tone: MiaSpeechStyle.warm,
+          ),
+        ),
+      );
   }
 
   @override
   void dispose() {
+    _generation++;
     MiaVoice.provider.stop();
     _input.dispose();
     _scroll.dispose();
@@ -113,21 +146,25 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
   }
 
   List<MiaChatTurn> get _history => _entries
-      .where((_ChatEntry e) => !e.isInfo)
+      .where((_ChatEntry e) => !e.isInfo && !e.failed)
       .map(
         (_ChatEntry e) => MiaChatTurn(fromLearner: e.fromLearner, text: e.text),
       )
       .toList(growable: false);
 
+  _ChatEntry? get _lastLearnerEntry {
+    for (int i = _entries.length - 1; i >= 0; i--) {
+      if (_entries[i].fromLearner) return _entries[i];
+    }
+    return null;
+  }
+
   void _changeMode(MiaChatMode mode) {
-    if (mode == _mode || _thinking) return;
+    if (mode == _mode || _endingSession) return;
     MiaVoice.provider.stop();
     setState(() {
       _mode = mode;
-      _entries
-        ..clear()
-        ..add(_ChatEntry.info(_introFor(mode)));
-      _miaState = MiaPresenceState.idle;
+      _startSession();
     });
   }
 
@@ -147,11 +184,10 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
   }
 
   Future<void> _send() async {
-    final MiaChatClient? client = _client;
     final String text = _input.text.trim();
-    if (text.isEmpty || _thinking) return;
+    if (text.isEmpty || _thinking || _endingSession) return;
 
-    if (client == null) {
+    if (_client == null) {
       setState(
         () => _entries.add(
           _ChatEntry.info(const MiaChatException('not_configured').message),
@@ -160,11 +196,47 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
       return;
     }
 
-    final List<MiaChatTurn> history = _history;
-    await MiaVoice.provider.stop();
+    final _ChatEntry entry = _ChatEntry.learner(text);
     setState(() {
-      _entries.add(_ChatEntry.learner(text));
+      _entries.add(entry);
       _input.clear();
+    });
+    await _ask(entry);
+  }
+
+  /// Sends a failed message again without duplicating it.
+  Future<void> _retry(_ChatEntry entry) async {
+    if (_thinking ||
+        _endingSession ||
+        !entry.failed ||
+        entry != _lastLearnerEntry) {
+      return;
+    }
+    setState(() {
+      _entries.removeWhere((_ChatEntry e) => e.isInfo && e != _entries.first);
+      entry.failed = false;
+    });
+    await _ask(entry);
+  }
+
+  Future<void> _ask(_ChatEntry entry) async {
+    final MiaChatClient client = _client!;
+    final int generation = _generation;
+    // Everything said before this message (the message itself is sent
+    // separately; failed messages and notices are left out).
+    final int index = _entries.indexOf(entry);
+    final List<MiaChatTurn> history = _entries
+        .take(index < 0 ? _entries.length : index)
+        .where((_ChatEntry e) => !e.isInfo && !e.failed)
+        .map(
+          (_ChatEntry e) =>
+              MiaChatTurn(fromLearner: e.fromLearner, text: e.text),
+        )
+        .toList(growable: false);
+
+    await MiaVoice.provider.stop();
+    if (!mounted || generation != _generation) return;
+    setState(() {
       _thinking = true;
       _miaState = MiaPresenceState.thinking;
     });
@@ -176,7 +248,7 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
         ...widget.profile.difficulties,
       ];
       final MiaChatReply reply = await client.send(
-        message: text,
+        message: entry.text,
         mode: _mode,
         profile: widget.profile,
         history: history,
@@ -185,31 +257,95 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
         immersion: _immersion,
         knownDifficulties: difficulties,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       setState(() {
         _entries.add(_ChatEntry.mia(reply));
         _miaState = _stateFor(reply);
+        _thinking = false;
       });
       _scrollToEnd();
-      await _notes.rememberFrom(reply);
-      if (_autoSpeak) await _speak(reply);
+      await _notes.rememberFrom(reply, sessionId: _sessionId);
+      if (_autoSpeak && mounted && generation == _generation) {
+        await _speak(reply);
+      }
+    } on Object catch (error) {
+      if (!mounted || generation != _generation) return;
+      final String message = error is MiaChatException
+          ? error.message
+          : const MiaChatException('unknown').message;
+      setState(() {
+        entry.failed = true;
+        _entries.add(_ChatEntry.info(message));
+        _miaState = MiaPresenceState.empathetic;
+        _thinking = false;
+      });
+      _scrollToEnd();
+    }
+  }
+
+  Future<void> _endSession() async {
+    final MiaChatClient? client = _client;
+    final List<MiaChatTurn> history = _history;
+    final bool learnerSpoke = history.any((MiaChatTurn t) => t.fromLearner);
+    if (_endingSession || _thinking) return;
+
+    if (!learnerSpoke || client == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    await MiaVoice.provider.stop();
+    final int generation = ++_generation; // Ignore any late answer.
+    setState(() {
+      _endingSession = true;
+      _miaState = MiaPresenceState.thinking;
+    });
+
+    MiaSessionSummary? summary;
+    String? summaryError;
+    try {
+      summary = await client.summarize(
+        history: history,
+        mode: _mode,
+        profile: widget.profile,
+        scenario: _mode == MiaChatMode.roleplay ? _scenario : null,
+      );
     } on MiaChatException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _entries.add(_ChatEntry.info(error.message));
-        _miaState = MiaPresenceState.empathetic;
-      });
+      summaryError = error.message;
     } on Object {
-      if (!mounted) return;
+      summaryError = const MiaChatException('mia_summary_unavailable').message;
+    }
+
+    final MiaSessionRecord record = await MiaSessionRecorder.record(
+      sessionId: _sessionId,
+      mode: _mode,
+      history: history,
+      profile: widget.profile,
+      duration: DateTime.now().difference(_sessionStart),
+      scenario: _mode == MiaChatMode.roleplay ? _scenario : null,
+      summary: summary,
+    );
+    if (!mounted || generation != _generation) return;
+
+    final bool? again = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => MiaSessionSummaryScreen(
+          summary: summary,
+          errorMessage: summaryError,
+          record: record,
+          learnerTurns: history.where((MiaChatTurn t) => t.fromLearner).length,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (again == true) {
       setState(() {
-        _entries.add(
-          _ChatEntry.info(const MiaChatException('unknown').message),
-        );
-        _miaState = MiaPresenceState.empathetic;
+        _endingSession = false;
+        _startSession();
       });
-    } finally {
-      if (mounted) setState(() => _thinking = false);
+    } else {
+      Navigator.of(context).maybePop();
     }
   }
 
@@ -292,6 +428,18 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
         elevation: 0,
         title: const Text('Mia', style: TextStyle(fontWeight: FontWeight.w900)),
         actions: <Widget>[
+          ValueListenableBuilder<bool>(
+            valueListenable: MiaVoice.provider.speaking,
+            builder: (BuildContext context, bool speaking, Widget? child) =>
+                speaking
+                ? IconButton(
+                    key: const Key('mia-chat-stop-voice'),
+                    tooltip: 'Arrêter la voix de Mia',
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    onPressed: () => MiaVoice.provider.stop(),
+                  )
+                : const SizedBox.shrink(),
+          ),
           IconButton(
             tooltip: _autoSpeak ? 'Voix de Mia activée' : 'Voix de Mia coupée',
             icon: Icon(
@@ -301,6 +449,21 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
               setState(() => _autoSpeak = !_autoSpeak);
               if (!_autoSpeak) MiaVoice.provider.stop();
             },
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: TextButton.icon(
+              key: const Key('mia-chat-end'),
+              onPressed: _endingSession || _thinking ? null : _endSession,
+              icon: _endingSession
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.flag_rounded, size: 18),
+              label: const Text('Terminer'),
+            ),
           ),
           PopupMenuButton<String>(
             tooltip: 'Options',
@@ -374,6 +537,7 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
             ),
           ),
         ],
+        _buildObjective(),
         Expanded(
           child: ListView.builder(
             controller: _scroll,
@@ -381,15 +545,51 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
             itemCount: _entries.length + (_thinking ? 1 : 0),
             itemBuilder: (BuildContext context, int index) {
               if (index == _entries.length) return const _ThinkingBubble();
+              final _ChatEntry entry = _entries[index];
               return _MessageBubble(
-                entry: _entries[index],
+                entry: entry,
                 onListen: (MiaChatReply reply) => _speak(reply),
+                // Only the latest message can be retried, to keep the order.
+                onRetry: entry.failed && entry == _lastLearnerEntry
+                    ? () => _retry(entry)
+                    : null,
               );
             },
           ),
         ),
         _buildComposer(),
       ],
+    );
+  }
+
+  Widget _buildObjective() {
+    final String objective = _mode == MiaChatMode.roleplay
+        ? '${_scenario.emoji} ${_scenario.label}'
+        : _mode.description;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.track_changes_rounded,
+            size: 14,
+            color: AppColors.primaryBright,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              objective,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -530,7 +730,7 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
           IconButton.filled(
             key: const Key('mia-chat-send'),
             tooltip: 'Envoyer',
-            onPressed: _thinking ? null : _send,
+            onPressed: _thinking || _endingSession ? null : _send,
             icon: const Icon(Icons.arrow_upward_rounded),
           ),
         ],
@@ -544,10 +744,15 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
 // =============================================================================
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.entry, required this.onListen});
+  const _MessageBubble({
+    required this.entry,
+    required this.onListen,
+    this.onRetry,
+  });
 
   final _ChatEntry entry;
   final ValueChanged<MiaChatReply> onListen;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -586,6 +791,16 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ),
               if (reply != null) ..._details(reply),
+              if (onRetry != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Réessayer'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.white),
+                  ),
+                ),
             ],
           ),
         ),
