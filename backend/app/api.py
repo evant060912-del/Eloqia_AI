@@ -5,6 +5,13 @@ import logging
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.chat import (
+    MiaChatError,
+    MiaChatRequest,
+    MiaChatResponse,
+    ask_mia,
+    rate_limiter,
+)
 from app.config import Settings
 from app.schemas import LearningContext, SpeechRequest, VoiceSessionResponse
 from app.security import (
@@ -198,3 +205,58 @@ async def speak_as_mia(
         media_type="audio/wav",
         headers={"Cache-Control": "no-store"},
     )
+
+
+# ============================================================================
+# MIA CHAT (turn-by-turn brain)
+# ============================================================================
+
+
+@app.get("/v1/mia/chat/status", tags=["mia"])
+async def mia_chat_status(request: Request) -> dict[str, object]:
+    """Tells the app whether Mia's chat brain can answer."""
+    current = Settings.from_env()
+    auth_ready = (
+        not current.missing_oidc_settings()
+        or _is_local_development_request(request)
+    )
+    return {
+        "available": bool(current.openai_api_key) and auth_ready,
+        "model": current.openai_chat_model,
+        "modes": ["conversation", "ask", "roleplay", "writing"],
+    }
+
+
+@app.post(
+    "/v1/mia/chat",
+    response_model=MiaChatResponse,
+    tags=["mia"],
+)
+async def chat_with_mia(
+    payload: MiaChatRequest,
+    learner: AuthenticatedLearner = Depends(require_learner),
+) -> MiaChatResponse:
+    """One turn with Mia: reply, tone for her voice, corrections, notes."""
+    current = Settings.from_env()
+
+    if not current.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "mia_chat_not_configured"},
+        )
+
+    limit = rate_limiter.check(learner.subject, current)
+    if limit is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "mia_chat_rate_limited", "limit": limit},
+        )
+
+    try:
+        return await ask_mia(payload, current)
+    except MiaChatError as error:
+        logger.warning("Mia chat failed: %s", error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "mia_chat_unavailable"},
+        ) from None

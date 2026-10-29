@@ -114,6 +114,15 @@ class Settings:
     cartesia_api_version: str = "2026-08-14"
     cartesia_secondary_voice_id: str = ""
 
+    # ------------------------------------------------------------------
+    # Mia chat ("cerveau" de Mia, mode tour par tour)
+    # ------------------------------------------------------------------
+
+    openai_chat_model: str = "gpt-5.4-mini"
+    mia_chat_max_per_window: int = 30
+    mia_chat_window_seconds: int = 600
+    mia_chat_max_per_day: int = 200
+
     @classmethod
     def from_env(cls) -> Settings:
         origins = tuple(
@@ -204,6 +213,22 @@ class Settings:
             ),
             cartesia_secondary_voice_id=_value(
                 "CARTESIA_SECONDARY_VOICE_ID",
+            ),
+            openai_chat_model=_value(
+                "OPENAI_CHAT_MODEL",
+                "gpt-5.4-mini",
+            ),
+            mia_chat_max_per_window=_integer(
+                "MIA_CHAT_MAX_PER_WINDOW",
+                30,
+            ),
+            mia_chat_window_seconds=_integer(
+                "MIA_CHAT_WINDOW_SECONDS",
+                600,
+            ),
+            mia_chat_max_per_day=_integer(
+                "MIA_CHAT_MAX_PER_DAY",
+                200,
             ),
         )
 
