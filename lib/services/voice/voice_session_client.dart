@@ -356,6 +356,12 @@ class VoiceSessionClient implements ConversationProvider {
   // Learning context
   // ---------------------------------------------------------------------------
 
+  /// Learning context shared with Mia's chat (same validated fields).
+  static Map<String, dynamic> learningContextFor(
+    LearningProfile profile,
+  ) =>
+      _learningContext(profile);
+
   static Map<String, dynamic> _learningContext(
     LearningProfile profile,
   ) {

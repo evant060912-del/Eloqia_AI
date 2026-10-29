@@ -9,6 +9,7 @@ import '../../../services/voice/voice_session_client.dart';
 import '../../../theme/app_colors.dart';
 import '../../learning/sessions/conversation_session_screen.dart';
 import 'widgets/mia_presence.dart';
+import 'mia_chat_screen.dart';
 import 'mia_live_session_screen.dart';
 
 class MiaScreen extends StatefulWidget {
@@ -582,6 +583,30 @@ class _MiaScreenState extends State<MiaScreen>
                 width: double.infinity,
                 height: 50,
                 child: OutlinedButton.icon(
+                  key: const Key('mia-open-chat'),
+                  onPressed: _openChat,
+                  icon: const Icon(Icons.forum_rounded, size: 19),
+                  label: const Text('Chat with Mia'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
                   onPressed: _startWritingPractice,
                   icon: const Icon(Icons.edit_note_rounded, size: 19),
                   label: const Text('Practice by writing'),
@@ -673,6 +698,27 @@ class _MiaScreenState extends State<MiaScreen>
   // ===========================================================================
   // START CONVERSATION
   // ===========================================================================
+
+  Future<void> _openChat() async {
+    try {
+      final LearningProfile profile =
+          _profile ?? await LearningProfileService.getProfile();
+      if (!mounted) {
+        return;
+      }
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => MiaChatScreen(
+            profile: profile,
+            accessTokenProvider: widget.accessTokenProvider,
+          ),
+        ),
+      );
+    } on Object {
+      _showConversationError('La discussion avec Mia ne peut pas démarrer.');
+    }
+  }
 
   Future<void> _startWritingPractice() async {
     try {
