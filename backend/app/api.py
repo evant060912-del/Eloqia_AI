@@ -9,8 +9,11 @@ from app.chat import (
     MiaChatError,
     MiaChatRequest,
     MiaChatResponse,
+    SessionSummaryRequest,
+    SessionSummaryResponse,
     ask_mia,
     rate_limiter,
+    summarize_session,
 )
 from app.config import Settings
 from app.schemas import LearningContext, SpeechRequest, VoiceSessionResponse
@@ -259,4 +262,39 @@ async def chat_with_mia(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"code": "mia_chat_unavailable"},
+        ) from None
+
+
+@app.post(
+    "/v1/mia/chat/summary",
+    response_model=SessionSummaryResponse,
+    tags=["mia"],
+)
+async def summarize_mia_session(
+    payload: SessionSummaryRequest,
+    learner: AuthenticatedLearner = Depends(require_learner),
+) -> SessionSummaryResponse:
+    """End-of-session review, grounded in what the learner actually wrote."""
+    current = Settings.from_env()
+
+    if not current.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "mia_chat_not_configured"},
+        )
+
+    limit = rate_limiter.check(learner.subject, current)
+    if limit is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "mia_chat_rate_limited", "limit": limit},
+        )
+
+    try:
+        return await summarize_session(payload, current)
+    except MiaChatError as error:
+        logger.warning("Mia summary failed: %s", error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "mia_summary_unavailable"},
         ) from None

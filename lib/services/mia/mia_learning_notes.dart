@@ -1,120 +1,151 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../models/learning_memory.dart';
+import '../learning/learning_memory_service.dart';
 import 'mia_chat_client.dart';
 
-/// Short pedagogical notes Mia keeps between sessions, on the device only.
+/// Pedagogical notes Mia uses between sessions.
+///
+/// Built on top of the app's existing learning memory ([MemoryService]):
+/// there is no second storage. Notes written from Mia's chat are tagged
+/// [tag]; lesson weaknesses recorded by `LessonResultService` (also tutor
+/// "mia") are read too, so conversations can revisit lesson difficulties.
 ///
 /// Privacy choices:
-/// - no conversation transcripts are stored, only short skill notes
-///   ("Irregular past tense: goed -> went");
-/// - at most [maxNotes] notes, each expiring after [retention];
-/// - the learner can erase everything with [clear].
+/// - no conversation transcripts, only short skill notes
+///   ("grammar: "I goed" -> "I went"");
+/// - chat notes expire after [retention];
+/// - [clear] deletes every chat note.
 class MiaLearningNotes {
   MiaLearningNotes({DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
 
-  static const String storageKey = 'mia_learning_notes_v1';
-  static const int maxNotes = 12;
+  static const String tag = 'mia-chat';
+  static const String tutorId = 'mia';
   static const Duration retention = Duration(days: 30);
+  static const int maxForMia = 8;
 
   final DateTime Function() _clock;
 
-  Future<List<MiaLearningNote>> load() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? raw = prefs.getString(storageKey);
-    if (raw == null || raw.isEmpty) return <MiaLearningNote>[];
-
-    try {
-      final Object? decoded = jsonDecode(raw);
-      if (decoded is! List) return <MiaLearningNote>[];
-      final DateTime limit = _clock().subtract(retention);
-      return decoded
-          .whereType<Map>()
-          .map(
-            (Map m) => MiaLearningNote.fromJson(Map<String, dynamic>.from(m)),
-          )
-          .whereType<MiaLearningNote>()
-          .where((MiaLearningNote n) => n.updatedAt.isAfter(limit))
-          .toList();
-    } on FormatException {
-      return <MiaLearningNote>[];
-    }
+  /// Active notes from Mia's chat (most recently updated first).
+  Future<List<LearningMemory>> load() async {
+    final List<LearningMemory> notes = (await MemoryService.getByTag(
+      tag,
+    )).where((LearningMemory m) => m.isUsable && !_expired(m)).toList();
+    notes.sort(
+      (LearningMemory a, LearningMemory b) =>
+          b.updatedAt.compareTo(a.updatedAt),
+    );
+    return notes;
   }
 
-  /// The notes sent to Mia (most recent first, max 8 on the server side).
+  bool _expired(LearningMemory memory) {
+    final DateTime? expiry = memory.expiresAt;
+    return expiry != null && !expiry.isAfter(_clock().toUtc());
+  }
+
+  /// Short difficulty notes sent to Mia: chat notes and lesson weaknesses.
   Future<List<String>> difficultiesForMia() async {
-    final List<MiaLearningNote> notes = await load();
-    notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return notes.take(8).map((MiaLearningNote n) => n.text).toList();
+    final List<LearningMemory> chat = await load();
+    final List<LearningMemory> lessons =
+        (await MemoryService.getRelevantMemoriesForTutor(tutorId, limit: 40))
+            .where(
+              (LearningMemory m) =>
+                  m.isUsable &&
+                  !_expired(m) &&
+                  m.type == LearningMemoryType.weakness &&
+                  !m.tags.contains(tag),
+            )
+            .toList()
+          ..sort(
+            (LearningMemory a, LearningMemory b) =>
+                b.importance.compareTo(a.importance),
+          );
+
+    final List<String> result = <String>[];
+    for (final LearningMemory m in <LearningMemory>[...chat, ...lessons]) {
+      final String text = m.content.length > 120
+          ? m.content.substring(0, 120)
+          : m.content;
+      if (!result.contains(text)) result.add(text);
+      if (result.length == maxForMia) break;
+    }
+    return result;
   }
 
   /// Keeps the useful parts of one of Mia's replies.
-  Future<void> rememberFrom(MiaChatReply reply) async {
+  Future<void> rememberFrom(MiaChatReply reply, {String? sessionId}) async {
     if (reply.safetyRedirect) return;
 
-    final List<String> fresh = <String>[
-      for (final MiaCorrection c in reply.corrections)
-        if (c.original.isNotEmpty && c.suggestion.isNotEmpty)
-          '${c.category}: "${c.original}" -> "${c.suggestion}"',
-      for (final MiaSkillObservation o in reply.observations)
-        if (o.observation.isNotEmpty) '${o.skill}: ${o.observation}',
-    ];
-    if (fresh.isEmpty) return;
+    final List<(String, LearningMemoryType)> fresh =
+        <(String, LearningMemoryType)>[
+          for (final MiaCorrection c in reply.corrections)
+            if (c.original.isNotEmpty && c.suggestion.isNotEmpty)
+              (
+                '${c.category}: "${c.original}" -> "${c.suggestion}"',
+                _typeFor(c.category),
+              ),
+          for (final MiaSkillObservation o in reply.observations)
+            if (o.observation.isNotEmpty)
+              ('${o.skill}: ${o.observation}', LearningMemoryType.observation),
+        ];
 
-    final List<MiaLearningNote> notes = await load();
-    final DateTime now = _clock();
-    for (final String text in fresh) {
-      final String clipped = text.length > 120 ? text.substring(0, 120) : text;
-      final int existing = notes.indexWhere(
-        (MiaLearningNote n) => n.text == clipped,
-      );
-      if (existing >= 0) {
-        final MiaLearningNote old = notes.removeAt(existing);
-        notes.add(MiaLearningNote(clipped, now, old.count + 1));
+    final DateTime now = _clock().toUtc();
+    for (final (String raw, LearningMemoryType type) in fresh) {
+      final String text = raw.length > 120 ? raw.substring(0, 120) : raw;
+      final String id = 'mia-chat-${_slug(text)}';
+      final LearningMemory? existing = await MemoryService.getMemory(id);
+      if (existing != null) {
+        await MemoryService.saveMemory(
+          existing
+              .reinforce(confidenceBoost: 6, importanceBoost: 4, at: now)
+              .copyWith(active: true, expiresAt: now.add(retention)),
+        );
       } else {
-        notes.add(MiaLearningNote(clipped, now, 1));
+        await MemoryService.createMemory(
+          id: id,
+          type: type,
+          source: LearningMemorySource.ai,
+          content: text,
+          tutorId: tutorId,
+          sourceSessionId: sessionId,
+          tags: const <String>[tag],
+          confidence: 45,
+          importance: type == LearningMemoryType.observation ? 40 : 55,
+          createdAt: now,
+          expiresAt: now.add(retention),
+        );
       }
     }
-
-    // Keep the most recent ones.
-    notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final List<MiaLearningNote> kept = notes.take(maxNotes).toList();
-
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      storageKey,
-      jsonEncode(kept.map((MiaLearningNote n) => n.toJson()).toList()),
-    );
   }
 
+  /// Deletes every note written from Mia's chat.
   Future<void> clear() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove(storageKey);
-  }
-}
-
-class MiaLearningNote {
-  const MiaLearningNote(this.text, this.updatedAt, this.count);
-
-  static MiaLearningNote? fromJson(Map<String, dynamic> json) {
-    final Object? text = json['text'];
-    final DateTime? at = DateTime.tryParse('${json['at']}');
-    if (text is! String || text.isEmpty || at == null) return null;
-    final Object? count = json['count'];
-    return MiaLearningNote(text, at, count is int && count > 0 ? count : 1);
+    for (final LearningMemory m in await MemoryService.getByTag(tag)) {
+      await MemoryService.deleteMemory(m.id);
+    }
   }
 
-  final String text;
-  final DateTime updatedAt;
-
-  /// How many times Mia noticed this point.
-  final int count;
-
-  Map<String, Object> toJson() => <String, Object>{
-    'text': text,
-    'at': updatedAt.toIso8601String(),
-    'count': count,
+  static LearningMemoryType _typeFor(String category) => switch (category) {
+    'grammar' => LearningMemoryType.grammar,
+    'vocabulary' => LearningMemoryType.vocabulary,
+    _ => LearningMemoryType.weakness,
   };
+
+  static String _slug(String text) {
+    final String slug = text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final String short = slug.length > 60 ? slug.substring(0, 60) : slug;
+    return '$short-${_fnv1a(text).toRadixString(16)}';
+  }
+
+  /// Stable 32-bit hash (String.hashCode may differ between runs).
+  static int _fnv1a(String text) {
+    int hash = 0x811c9dc5;
+    for (final int unit in text.codeUnits) {
+      hash ^= unit;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash;
+  }
 }

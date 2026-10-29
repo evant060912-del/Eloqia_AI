@@ -113,4 +113,54 @@ void main() {
       isTrue,
     );
   });
+
+  test('long answers are split at sentence boundaries under the limit', () {
+    final String sentence = '${'word ' * 30}end.';
+    final String text = List<String>.filled(8, sentence).join(' ');
+    final List<String> chunks = BackendCloudSpeechTransport.splitForSpeech(
+      text,
+    );
+    expect(chunks.length, greaterThan(1));
+    expect(chunks.every((String c) => c.length <= 600), isTrue);
+    expect(chunks.every((String c) => c.endsWith('end.')), isTrue);
+    expect(chunks.join(' '), text);
+    expect(BackendCloudSpeechTransport.splitForSpeech('  '), isEmpty);
+  });
+
+  test('a sentence longer than the limit is cut between words', () {
+    final String text = 'word ' * 200;
+    final List<String> chunks = BackendCloudSpeechTransport.splitForSpeech(
+      text,
+    );
+    expect(chunks.every((String c) => c.length <= 600), isTrue);
+    expect(chunks.join(' '), text.trim());
+  });
+
+  test(
+    'replaying the same line reuses the audio instead of paying again',
+    () async {
+      int calls = 0;
+      final _FakePlayer player = _FakePlayer();
+      final BackendCloudSpeechTransport transport = BackendCloudSpeechTransport(
+        apiBaseUri: Uri.parse('http://localhost:8000'),
+        accessTokenProvider: null,
+        player: player,
+        httpClient: MockClient((http.Request request) async {
+          calls++;
+          return http.Response.bytes(<int>[1, 2, 3], 200);
+        }),
+      );
+
+      for (int i = 0; i < 2; i++) {
+        await transport.speak(
+          'Same line',
+          style: MiaSpeechStyle.warm,
+          otherSpeaker: false,
+          speedFactor: 1.0,
+        );
+      }
+      expect(calls, 1);
+      expect(player.played.length, 2);
+    },
+  );
 }

@@ -6,6 +6,37 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Mia Conversation 2.0
+
+## Added
+
+* Mia's AI brain (`POST /v1/mia/chat`): free conversation, Ask Mia, six
+  real-life role-plays and a writing coach (learn / improve / exam), with
+  OpenAI moderation on both sides, per-learner rate limits and validated JSON.
+* End-of-session review (`POST /v1/mia/chat/summary`). Every correction must
+  quote what the learner actually wrote; ungrounded items are discarded.
+* Finished conversations are recorded through the existing session, progress,
+  streak and achievement services (XP only after 3 real learner messages,
+  awarded once per session). New achievements: First Conversation, Role Player,
+  Writer.
+* Session review screen, "Stop voice" and "End session" actions, retry of a
+  failed message without losing the conversation.
+
+## Changed
+
+* Mia's chat notes now use the existing `MemoryService` (tag `mia-chat`, 30-day
+  expiry) instead of a separate store; lesson weaknesses are shared with Mia.
+* "Hear Mia" plays long answers in full (split under the 600-character server
+  limit), reuses already generated audio and caches availability for a minute.
+
+## Removed
+
+* Anam avatar widget and external script from `web/index.html`.
+* Empty files (`mia_session_service.dart`, `writing_screen.dart`,
+  `app_radius.dart`) and the duplicated `mia - Copy.png` asset.
+
+---
+
 # [Unreleased] — Mia Experience 4.0
 
 ## Added
