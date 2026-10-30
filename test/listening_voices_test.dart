@@ -44,6 +44,12 @@ class _FakeTts extends FlutterTts {
   Future<dynamic> setSpeechRate(double rate) async => 1;
 
   @override
+  Future<dynamic> setPitch(double pitch) async {
+    log.add('pitch $pitch');
+    return 1;
+  }
+
+  @override
   Future<dynamic> speak(String text, {bool focus = false}) async {
     log.add('say $text');
     return 1;
@@ -82,6 +88,15 @@ class _FakeListening implements ListeningVoice {
 
   @override
   Future<void> stop() async {}
+
+  @override
+  Future<String?> voiceName({
+    required String speaker,
+    ListeningAccent? accent,
+  }) async => null;
+
+  @override
+  void beginDialogue() {}
 }
 
 void main() {
@@ -135,11 +150,24 @@ void main() {
           accent: ListeningAccent.australian,
         );
         expect(tts.log, <String>[
+          'language en-GB',
           'voice UK Female',
+          'pitch 1.0',
           'say Hello!',
+          'language en_GB',
           'voice UK Male',
+          'pitch 0.85',
           'say No worries.',
         ]);
+        // A new dialogue: lines without an accent get distinct voices.
+        voice.beginDialogue();
+        await Future<void>.delayed(Duration.zero);
+        await voice.speakLine(speaker: 'Mia', text: 'Hi Sam.');
+        await voice.speakLine(speaker: 'Sam', text: 'Hi Mia.');
+        expect(
+          tts.log.where((String l) => l.startsWith('voice')).skip(2),
+          <String>['voice US English', 'voice UK Female'],
+        );
         expect(DeviceVoice.parse(_voices)[1].toMap(), <String, String>{
           'name': 'UK Male',
           'locale': 'en_GB',

@@ -9,10 +9,7 @@ typedef OidcAccessTokenProvider = Future<String?> Function();
 
 /// A safe, user-facing exception raised by the voice-session service.
 class VoiceSessionException implements Exception {
-  const VoiceSessionException({
-    required this.code,
-    required this.message,
-  });
+  const VoiceSessionException({required this.code, required this.message});
 
   final String code;
   final String message;
@@ -37,9 +34,7 @@ class VoiceSessionResponse {
   final String participantToken;
   final int expiresInSeconds;
 
-  factory VoiceSessionResponse.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory VoiceSessionResponse.fromJson(Map<String, dynamic> json) {
     final dynamic expiry = json['expires_in_seconds'];
     final dynamic rawSessionId = json['session_id'];
     final dynamic rawRoomName = json['room_name'];
@@ -114,14 +109,10 @@ class VoiceSessionClient implements ConversationProvider {
     required OidcAccessTokenProvider? accessTokenProvider,
     http.Client? httpClient,
   }) {
-    const String configuredUrl = String.fromEnvironment(
-      'ELOQIA_VOICE_API_URL',
-    );
+    const String configuredUrl = String.fromEnvironment('ELOQIA_VOICE_API_URL');
 
     return VoiceSessionClient(
-      apiBaseUri: configuredUrl.isEmpty
-          ? null
-          : Uri.tryParse(configuredUrl),
+      apiBaseUri: configuredUrl.isEmpty ? null : Uri.tryParse(configuredUrl),
       accessTokenProvider: accessTokenProvider,
       httpClient: httpClient,
     );
@@ -199,8 +190,7 @@ class VoiceSessionClient implements ConversationProvider {
       );
     }
 
-    final OidcAccessTokenProvider? tokenProvider =
-        accessTokenProvider;
+    final OidcAccessTokenProvider? tokenProvider = accessTokenProvider;
 
     if (tokenProvider == null) {
       throw const VoiceSessionException(
@@ -281,8 +271,7 @@ class VoiceSessionClient implements ConversationProvider {
       );
     }
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       throw _readServerError(response);
     }
 
@@ -290,14 +279,10 @@ class VoiceSessionClient implements ConversationProvider {
       final dynamic decoded = jsonDecode(response.body);
 
       if (decoded is! Map) {
-        throw const FormatException(
-          'Expected a JSON object.',
-        );
+        throw const FormatException('Expected a JSON object.');
       }
 
-      return VoiceSessionResponse.fromJson(
-        Map<String, dynamic>.from(decoded),
-      );
+      return VoiceSessionResponse.fromJson(Map<String, dynamic>.from(decoded));
     } on VoiceSessionException {
       rethrow;
     } on Object {
@@ -357,14 +342,10 @@ class VoiceSessionClient implements ConversationProvider {
   // ---------------------------------------------------------------------------
 
   /// Learning context shared with Mia's chat (same validated fields).
-  static Map<String, dynamic> learningContextFor(
-    LearningProfile profile,
-  ) =>
+  static Map<String, dynamic> learningContextFor(LearningProfile profile) =>
       _learningContext(profile);
 
-  static Map<String, dynamic> _learningContext(
-    LearningProfile profile,
-  ) {
+  static Map<String, dynamic> _learningContext(LearningProfile profile) {
     const Set<String> allowedLevels = <String>{
       'A1',
       'A2',
@@ -416,8 +397,7 @@ class VoiceSessionClient implements ConversationProvider {
     final String name = profile.name.trim();
     final String level = profile.currentLevel.trim().toUpperCase();
     final String goal = profile.primaryGoal.trim();
-    final String correction =
-        profile.preferredCorrectionStyle.trim();
+    final String correction = profile.preferredCorrectionStyle.trim();
     final String pace = profile.learningPace.trim();
 
     final List<String> interests = profile.interests
@@ -433,9 +413,7 @@ class VoiceSessionClient implements ConversationProvider {
       'correction_style': allowedCorrections.contains(correction)
           ? correction
           : 'balanced',
-      'learning_pace': allowedPaces.contains(pace)
-          ? pace
-          : 'adaptive',
+      'learning_pace': allowedPaces.contains(pace) ? pace : 'adaptive',
       'interests': interests,
     };
   }
@@ -444,9 +422,7 @@ class VoiceSessionClient implements ConversationProvider {
   // Server error handling
   // ---------------------------------------------------------------------------
 
-  static VoiceSessionException _readServerError(
-    http.Response response,
-  ) {
+  static VoiceSessionException _readServerError(http.Response response) {
     String? code;
 
     try {
@@ -485,7 +461,8 @@ class VoiceSessionClient implements ConversationProvider {
       case 429:
         return const VoiceSessionException(
           code: 'voice_rate_limited',
-          message: 'Trop de demandes vocales. Attends un instant avant de réessayer.',
+          message:
+              'Trop de demandes vocales. Attends un instant avant de réessayer.',
         );
 
       case 503:

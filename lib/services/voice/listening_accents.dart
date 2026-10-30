@@ -87,6 +87,12 @@ class VoiceCasting {
 
   bool get hasEnglish => _voices.isNotEmpty;
 
+  /// A new dialogue: every voice is free again.
+  void reset() {
+    _cast.clear();
+    _used.clear();
+  }
+
   /// Accents with at least one installed voice.
   Set<ListeningAccent> get accents => <ListeningAccent>{
     for (final ListeningAccent a in ListeningAccent.values)
@@ -100,20 +106,37 @@ class VoiceCasting {
   /// The voice for [speaker]. Without a voice for the accent, another
   /// English voice that no other speaker uses yet, so the speakers still
   /// sound different; null only when the device has no English voice.
-  DeviceVoice? voiceFor(String speaker, ListeningAccent accent) {
-    final String key = '${accent.name}|$speaker';
+  ///
+  /// With [strict] false (a line with no accent), any English voice not used
+  /// yet is preferred, American first, so speakers never share a voice when
+  /// the device has enough of them.
+  DeviceVoice? voiceFor(
+    String speaker,
+    ListeningAccent accent, {
+    bool strict = true,
+  }) {
+    final String key = '${strict ? accent.name : 'any'}|$speaker';
     if (_cast.containsKey(key)) return _cast[key];
     final List<DeviceVoice> candidates = voicesFor(accent);
+    final Set<String> taken = <String>{
+      for (final DeviceVoice? v in _cast.values)
+        if (v != null) v.name,
+    };
     DeviceVoice? voice;
-    if (candidates.isNotEmpty) {
+    if (!strict && _voices.isNotEmpty) {
+      final List<DeviceVoice> preferred = <DeviceVoice>[
+        ...candidates,
+        ..._voices.where((DeviceVoice v) => !candidates.contains(v)),
+      ];
+      voice = preferred.firstWhere(
+        (DeviceVoice v) => !taken.contains(v.name),
+        orElse: () => preferred[_cast.length % preferred.length],
+      );
+    } else if (candidates.isNotEmpty) {
       final int index = _used[accent] ?? 0;
       voice = candidates[index % candidates.length];
       _used[accent] = index + 1;
     } else if (_voices.isNotEmpty) {
-      final Set<String> taken = <String>{
-        for (final DeviceVoice? v in _cast.values)
-          if (v != null) v.name,
-      };
       voice = _voices.firstWhere(
         (DeviceVoice v) => !taken.contains(v.name),
         orElse: () => _voices[_cast.length % _voices.length],

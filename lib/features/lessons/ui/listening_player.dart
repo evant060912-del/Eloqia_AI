@@ -27,6 +27,9 @@ class _ListeningPlayerState extends State<ListeningPlayer>
   late final AnimationController _wave;
   bool? _available;
   Set<ListeningAccent> _installed = <ListeningAccent>{};
+
+  /// Voice name per speaker (device voices), shown next to the speaker.
+  Map<String, String> _voiceNames = <String, String>{};
   late final ListeningVoice _voice = ListeningVoices.provider;
   bool _playing = false;
   int _line = -1;
@@ -40,15 +43,25 @@ class _ListeningPlayerState extends State<ListeningPlayer>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
+    _voice.beginDialogue();
     unawaited(_checkVoices());
   }
 
   Future<void> _checkVoices() async {
     bool ok;
     Set<ListeningAccent> installed;
+    final Map<String, String> names = <String, String>{};
     try {
       ok = await _voice.isAvailable();
       installed = await _voice.accents();
+      for (final AudioLine line in widget.lines) {
+        if (names.containsKey(line.speaker)) continue;
+        final String? name = await _voice.voiceName(
+          speaker: line.speaker,
+          accent: line.accent,
+        );
+        if (name != null) names[line.speaker] = name;
+      }
     } on Object {
       ok = false;
       installed = <ListeningAccent>{};
@@ -57,6 +70,7 @@ class _ListeningPlayerState extends State<ListeningPlayer>
       setState(() {
         _available = ok;
         _installed = installed;
+        _voiceNames = names;
       });
     }
   }
@@ -230,8 +244,7 @@ class _ListeningPlayerState extends State<ListeningPlayer>
                   spacing: 6,
                   runSpacing: 6,
                   children: <Widget>[
-                    for (final MapEntry<String, ListeningAccent> s
-                        in _speakers.entries)
+                    for (final MapEntry<String, String> s in _speakers.entries)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -242,7 +255,7 @@ class _ListeningPlayerState extends State<ListeningPlayer>
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '${s.key} · ${s.value.label}',
+                          '${s.key} · ${s.value}',
                           style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 11.5,
@@ -311,9 +324,13 @@ class _ListeningPlayerState extends State<ListeningPlayer>
   }
 
   /// Each speaker with an accent, in order of appearance.
-  Map<String, ListeningAccent> get _speakers => <String, ListeningAccent>{
+  Map<String, String> get _speakers => <String, String>{
     for (final AudioLine line in widget.lines)
-      if (line.accent != null) line.speaker: line.accent!,
+      if (line.accent != null || _voiceNames.containsKey(line.speaker))
+        line.speaker: <String>[
+          if (line.accent != null) line.accent!.label,
+          if (_voiceNames[line.speaker] != null) _voiceNames[line.speaker]!,
+        ].join(', '),
   };
 
   Widget _waveform() {
