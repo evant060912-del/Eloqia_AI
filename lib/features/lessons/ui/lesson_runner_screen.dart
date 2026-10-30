@@ -15,6 +15,7 @@ import '../review/review_service.dart';
 import 'exercise_widgets.dart';
 import 'feedback_panel.dart';
 import 'listening_player.dart';
+import 'video_clip_player.dart';
 
 enum _Stage { intro, exercise, complete }
 
@@ -611,7 +612,14 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
                 _passage(widget.lesson.passage!),
                 const SizedBox(height: 14),
               ],
-              if (widget.lesson.audio.isNotEmpty) ...<Widget>[
+              if (widget.lesson.video != null) ...<Widget>[
+                VideoClipPlayer(
+                  clip: widget.lesson.video!,
+                  transcript: widget.lesson.audio,
+                  showTranscript: outcome != null,
+                ),
+                const SizedBox(height: 14),
+              ] else if (widget.lesson.audio.isNotEmpty) ...<Widget>[
                 ListeningPlayer(
                   lines: widget.lesson.audio,
                   showTranscript: outcome != null,

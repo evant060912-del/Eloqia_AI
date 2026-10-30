@@ -208,6 +208,49 @@ class LessonActivity {
   final List<String> examples;
 }
 
+/// A real video (or recording) used for listening practice.
+///
+/// [mp4] plays a file the app may show legally (public domain, such as VOA
+/// Learning English, or your own recordings). [youtube] uses YouTube's
+/// official embedded player: the video stays on YouTube, with its captions,
+/// and only our questions are added.
+class VideoClip {
+  const VideoClip.mp4({
+    required String this.url,
+    required this.credit,
+    required this.sourcePage,
+    this.publicDomain = true,
+  }) : youtubeId = null,
+       startSeconds = 0,
+       endSeconds = null;
+
+  const VideoClip.youtube({
+    required String id,
+    required this.credit,
+    required this.sourcePage,
+    this.startSeconds = 0,
+    this.endSeconds,
+  }) : youtubeId = id,
+       url = null,
+       publicDomain = false;
+
+  final String? url;
+  final String? youtubeId;
+
+  /// Who made it ("VOA Learning English (public domain)").
+  final String credit;
+
+  /// Page where the original is published.
+  final String sourcePage;
+  final bool publicDomain;
+
+  /// Part of a YouTube video to play (seconds).
+  final int startSeconds;
+  final int? endSeconds;
+
+  bool get isYoutube => youtubeId != null;
+}
+
 class AudioLine {
   const AudioLine(this.speaker, this.text, {this.accent});
 
@@ -234,6 +277,7 @@ class Lesson {
     this.tags = const <String>[],
     this.passage,
     this.audio = const <AudioLine>[],
+    this.video,
   });
 
   final String id;
@@ -264,6 +308,10 @@ class Lesson {
     for (final LessonActivity a in activities)
       if (a.kind == kind) ...a.exercises,
   ];
+
+  /// A real video for this listening lesson. Its transcript, when it may be
+  /// shown (public domain), is in [audio] and appears after answering.
+  final VideoClip? video;
 
   /// Accents heard in the audio (listening library filters).
   Set<ListeningAccent> get accents => <ListeningAccent>{

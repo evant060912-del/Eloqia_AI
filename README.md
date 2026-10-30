@@ -54,6 +54,10 @@ transcript). Pronunciation is not scored. After pulling, run
 
 ## Listening
 
+Real videos: listening lessons can play public-domain VOA Learning English
+videos or YouTube videos in the official embedded player (see
+`docs/VIDEO_LISTENING.md` to add more).
+
 Dialogues are read by the free voices installed on the device, with American,
 British and Australian accents when the device has them (Chrome includes
 American and British voices; others depend on the system). 12 listening

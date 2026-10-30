@@ -69,6 +69,27 @@ This changelog tracks the evolution of the project step by step, from its first 
 * `pubspec.yaml`: `speech_to_text: ^7.3.0` (run `flutter pub get`);
   microphone and speech recognition permissions for Android and iOS.
 
+# [Unreleased] — Listening with real videos
+
+## Added
+
+* Listening lessons can use a real video instead of synthetic voices
+  (`Lesson.video`, `VideoClip`):
+  - public-domain MP4 files (VOA Learning English, U.S. government works),
+    played with `video_player`, with their transcript after answering;
+  - YouTube videos in YouTube's official embedded player
+    (`youtube_player_iframe`), with YouTube's captions; nothing is downloaded
+    and no YouTube transcript is copied into the app.
+* First two real-video lessons from VOA Learning English: "A new apartment"
+  (A1) and "Rumours at work" (B1), with original questions.
+* Listening library: "Real videos" filter and a "Real video" label.
+* `docs/VIDEO_LISTENING.md`: how to add a VOA video or a YouTube video.
+
+## Changed
+
+* `pubspec.yaml`: `video_player` and `youtube_player_iframe` (run
+  `flutter pub get`).
+
 # [Unreleased] — Listening with free device voices and accents
 
 ## Added

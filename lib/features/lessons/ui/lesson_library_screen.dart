@@ -27,6 +27,9 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
   /// Listening only: show lessons with this accent (null = all).
   ListeningAccent? _accent;
 
+  /// Listening only: show only lessons with a real video.
+  bool _videosOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -87,9 +90,13 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
     final List<Lesson> all = LessonCatalog.forSkill(widget.skill)
       ..sort((Lesson a, Lesson b) => a.levelIndex.compareTo(b.levelIndex));
     final ListeningAccent? accent = _accent;
-    final List<Lesson> lessons = accent == null
-        ? all
-        : all.where((Lesson l) => l.accents.contains(accent)).toList();
+    final List<Lesson> lessons = all
+        .where(
+          (Lesson l) =>
+              (accent == null || l.accents.contains(accent)) &&
+              (!_videosOnly || l.video != null),
+        )
+        .toList();
     final List<int> levels = lessons
         .map((Lesson l) => l.levelIndex)
         .toSet()
@@ -112,6 +119,12 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: <Widget>[
+                    FilterChip(
+                      avatar: const Icon(Icons.videocam_outlined, size: 18),
+                      label: const Text('Real videos'),
+                      selected: _videosOnly,
+                      onSelected: (bool on) => setState(() => _videosOnly = on),
+                    ),
                     ChoiceChip(
                       label: const Text('All accents'),
                       selected: accent == null,
@@ -127,7 +140,7 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
                 ),
               ],
               const SizedBox(height: 14),
-              if (accent == null)
+              if (accent == null && !_videosOnly)
                 _RecommendedCard(
                   choice: recommended,
                   onStart: () => _open(recommended),
@@ -298,6 +311,7 @@ class _LessonTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       '${lesson.estimatedMinutes} min · ${lesson.xpReward} XP'
+                      '${lesson.video != null ? ' · Real video' : ''}'
                       '${lesson.accents.isEmpty ? '' : ' · ${lesson.accents.map((ListeningAccent a) => a.label).join(', ')}'}'
                       '${recommended ? ' · Recommended' : ''}',
                       style: TextStyle(
