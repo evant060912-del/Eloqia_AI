@@ -12,6 +12,7 @@ import '../content/listening_content_more.dart';
 import '../content/reading_content.dart';
 import '../content/reading_content_more.dart';
 import '../content/vocabulary_content.dart';
+import '../content/video_listening_content.dart';
 import '../content/vocabulary_content_more.dart';
 import '../models/lesson_models.dart';
 
@@ -27,6 +28,7 @@ class LessonCatalog {
     ...moreReadingLessons,
     ...listeningLessons,
     ...moreListeningLessons,
+    ...videoListeningLessons,
   ]);
 
   static final Map<String, ({Exercise exercise, Lesson lesson})> _exercises =

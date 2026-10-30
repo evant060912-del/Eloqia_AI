@@ -50,7 +50,13 @@ void main() {
           expect(lesson.passage, isNotNull, reason: lesson.id);
         }
         if (lesson.skill == LessonSkill.listening) {
-          expect(lesson.audio, isNotEmpty, reason: lesson.id);
+          // A real video may replace the dialogue (YouTube transcripts are
+          // not copied into the app).
+          expect(
+            lesson.audio.isNotEmpty || lesson.video != null,
+            isTrue,
+            reason: lesson.id,
+          );
         }
         for (final Exercise e in lesson.allExercises) {
           expect(ids.add(e.id), isTrue, reason: 'duplicate ${e.id}');
