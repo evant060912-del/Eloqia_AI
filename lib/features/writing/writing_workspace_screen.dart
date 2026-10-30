@@ -8,6 +8,12 @@ import '../../services/mia/mia_learning_notes.dart';
 import '../../services/mia/mia_session_recorder.dart';
 import '../../services/mia/writing_review.dart';
 import '../../theme/app_colors.dart';
+import '../exams/exam_clock.dart';
+import '../exams/exam_formats.dart';
+import '../exams/exam_progress.dart';
+import '../exams/exam_score_store.dart';
+import '../exams/exam_visual_view.dart';
+import '../exams/exam_widgets.dart';
 import '../tutors/mia/widgets/mia_presence.dart';
 import 'writing_catalog.dart';
 import 'writing_checks.dart';
@@ -61,13 +67,48 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
   /// Last text sent for review: not saved again as a draft when leaving.
   String? _submittedText;
 
+  /// Official timer of exam tasks (null for the studio genres).
+  ExamClock? _clock;
+  Timer? _ticker;
+  final ValueNotifier<int> _tick = ValueNotifier<int>(0);
+  bool _timeUpShown = false;
+
   WritingTask get _task => widget.task;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final Duration? limit = _task.timeLimit;
+    if (limit != null) _clock = ExamClock(limit: limit);
     _restore();
+  }
+
+  void _startClock() {
+    final ExamClock? clock = _clock;
+    if (clock == null) return;
+    clock.start();
+    _timeUpShown = false;
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      _tick.value++;
+      if (clock.isOver && !_timeUpShown && mounted) {
+        _timeUpShown = true;
+        _snack(
+          'Time is up. In the exam your text would be collected now: '
+          'finish your sentence and submit.',
+        );
+      }
+    });
+    _tick.value++;
+    _focus.requestFocus();
+  }
+
+  void _resetClock() {
+    _ticker?.cancel();
+    _ticker = null;
+    _clock?.reset();
+    _tick.value++;
   }
 
   Future<void> _restore() async {
@@ -94,6 +135,8 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _saveTimer?.cancel();
+    _ticker?.cancel();
+    _tick.dispose();
     _saveNow();
     _generation++;
     _text.dispose();
@@ -218,6 +261,10 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
     FocusScope.of(context).unfocus();
 
     final int generation = ++_generation;
+    final ExamClock? clock = _clock;
+    final bool timed = clock != null && clock.started;
+    final Duration? timeLimit = timed ? clock.limit : null;
+    final Duration? timeUsed = timed ? clock.elapsed : null;
     setState(() => _submitting = true);
 
     WritingReview? review;
@@ -240,8 +287,10 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
           maxWords: _task.maxWords,
           text: text,
           profile: widget.profile,
-          sourceText: _task.sourceText,
+          sourceText: _task.reviewSource,
           knownDifficulties: difficulties,
+          timeLimit: timeLimit,
+          timeUsed: timeUsed,
         );
       } on MiaChatException catch (error) {
         _failed(generation, error.message);
@@ -274,9 +323,24 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
     }
 
     final DateTime now = DateTime.now().toUtc();
+    final String entryId = 'w-${_task.id}-${now.microsecondsSinceEpoch}';
+    if (review != null) {
+      final ExamAttempt? attempt = ExamScoreStore.fromReview(
+        id: entryId,
+        genre: _task.genre.apiValue,
+        taskId: _task.id,
+        title: _task.title,
+        review: review,
+        at: now,
+        timeLimit: timeLimit,
+        timeUsed: timeUsed,
+      );
+      if (attempt != null) await ExamScoreStore.add(attempt);
+    }
+    if (timed && mounted) _resetClock();
     await WritingStore.addToHistory(
       WritingHistoryEntry(
-        id: 'w-${_task.id}-${now.microsecondsSinceEpoch}',
+        id: entryId,
         taskId: _task.id,
         genre: _task.genre.apiValue,
         taskTitle: _task.title,
@@ -345,6 +409,12 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
 
   // ---------------------------------------------------------------------- UI
 
+  String get _subtitle {
+    final ExamTaskType? exam = _task.genre.examTask;
+    if (exam == null) return '${_task.genre.label}, ${_task.band.levels}';
+    return '${exam.exam.label} ${exam.label}, ${exam.timeLabel}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -362,7 +432,7 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
             ),
             Text(
-              '${_task.genre.label}, ${_task.band.levels}',
+              _subtitle,
               style: const TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12.5,
@@ -480,6 +550,14 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
             ],
           ),
         ),
+        if (_task.visual != null) ...<Widget>[
+          const WritingSectionTitle('The visual'),
+          ExamVisualView(visual: _task.visual!),
+        ],
+        if (_task.discussion != null) ...<Widget>[
+          const WritingSectionTitle('Class discussion'),
+          DiscussionBoardView(board: _task.discussion!),
+        ],
         if (_task.sourceText != null) ...<Widget>[
           const WritingSectionTitle('Text to summarise'),
           WritingPanel(
@@ -544,6 +622,17 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       child: Column(
         children: <Widget>[
+          if (_clock != null) ...<Widget>[
+            ValueListenableBuilder<int>(
+              valueListenable: _tick,
+              builder: (BuildContext context, int _, Widget? _) => ExamTimerBar(
+                clock: _clock!,
+                onStart: _startClock,
+                onReset: _resetClock,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Expanded(
             child: Container(
               decoration: BoxDecoration(

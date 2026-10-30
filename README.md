@@ -40,7 +40,7 @@ certification.
 Learn → Writing (or Home → Writing) opens the Writing Studio: 13 kinds of
 writing (email, practical message, free writing, essay, argumentative, opinion,
 for and against, academic style, narrative, descriptive, creative, summary,
-report) with 43 authored tasks across three level bands (A1–A2, B1–B2, C1–C2).
+report) with 73 authored tasks across three level bands (A1–A2, B1–B2, C1–C2).
 
 * The editor saves a draft automatically and shows the word count against the
   task's target. "Check basics" runs certain mechanical rules on the device
@@ -55,6 +55,32 @@ report) with 43 authored tasks across three level bands (A1–A2, B1–B2, C1–
   added to Mia's learning memory. The last 20 reviews stay on the device.
 * Without the server address the studio still works offline (drafts, automatic
   checks, XP) and says how to connect Mia.
+
+### TOEFL and IELTS writing (exam preparation)
+
+The studio's "Exam preparation" section opens a TOEFL space and an IELTS space.
+All prompts, posts and data are original (official prompts are protected), and
+every score is labelled as an unofficial estimate: Eloqia is not affiliated with
+ETS or the IELTS partners.
+
+* TOEFL iBT, format introduced in January 2026 (writing section of about 23
+  minutes): Build a Sentence (3 sets of 10 items, 6 min 50 s, all-or-nothing,
+  scored on the device), Write an Email (6 tasks, 7 min) and Write for an
+  Academic Discussion (6 tasks, 10 min, shown as a class forum). Email and
+  discussion are scored 0–5 by Mia.
+* IELTS: Academic Task 1 (8 tasks, 20 min) with bar and line charts, pie
+  charts, a table, a process and a map drawn by the app from invented data;
+  General Training Task 1 letters (5 tasks, 20 min); Task 2 essays (8 tasks,
+  40 min). Mia marks the four public criteria from 0 to 9 and the app rounds to
+  the half band. With a Task 1 and a Task 2, the space shows an estimated
+  Writing band (Task 2 counts double).
+* Exam tasks have the official timer (start it or practise untimed). The time
+  used is sent with the text, and Mia mentions an overrun without lowering the
+  language scores.
+* Each space shows the format of every task, the score history with a trend,
+  the tasks not tried yet and advice on the weakest criterion over the last six
+  attempts, with a button to the task that trains it. Up to 150 attempts stay
+  on the device under `eloqia.exams.attempts`.
 
 ## Run Eloqia with Mia on your computer
 

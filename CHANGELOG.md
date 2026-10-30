@@ -6,6 +6,35 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — TOEFL and IELTS writing preparation
+
+## Added
+
+* TOEFL and IELTS spaces in the Writing Studio ("Exam preparation"): official
+  formats, score history with trend, tasks not tried yet, advice on the weakest
+  criterion with a link to the task that trains it, estimated IELTS Writing
+  band (Task 2 counts double). Every score is labelled unofficial.
+* TOEFL iBT (January 2026 format): Build a Sentence with 30 original items in
+  3 timed sets (6 min 50 s, all-or-nothing, explained corrections), 6 Write an
+  Email tasks (7 min) and 6 Academic Discussion tasks shown as a class forum
+  (10 min).
+* IELTS: 8 Academic Task 1 tasks with visuals drawn by the app from invented
+  data (bar and line charts, pie charts, table, process, map), 5 General
+  Training letters and 8 Task 2 essays.
+* Official timers (7, 10, 20 and 40 minutes) in the editor, with untimed
+  practice; the time used is sent to Mia.
+* 30 new tasks in the 13 studio genres (73 in total), including two original
+  texts to summarise.
+* Server: exam genres scored on their own scale (IELTS 0–9 with half bands,
+  TOEFL 0–5), `exam_estimate` in the response, optional
+  `time_limit_seconds`/`time_used_seconds`.
+
+## Changed
+
+* The review rules sent to Mia use the task's own scale instead of always
+  "0 to 5".
+* Review history shows the IELTS band or TOEFL score of exam tasks.
+
 # [Unreleased] — Writing Studio
 
 ## Added

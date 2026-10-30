@@ -377,15 +377,26 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int? score = review?.safetyRedirect == true
-        ? null
-        : review?.scorePercent;
+    final bool safe = review?.safetyRedirect != true;
+    final int? score = safe ? review?.scorePercent : null;
+    final ExamEstimate? exam = safe ? review?.examEstimate : null;
     final MiaSessionRecord? rewards = record;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (score != null)
-          _ScoreRing(score: score)
+        if (exam != null)
+          _ScoreRing(
+            fraction: exam.value / exam.scaleMax,
+            center: exam.display,
+            caption: exam.exam,
+            semantics: '${exam.label}: ${exam.display} out of ${exam.scaleMax}',
+          )
+        else if (score != null)
+          _ScoreRing(
+            fraction: score / 100,
+            center: '$score%',
+            semantics: 'Practice score $score percent',
+          )
         else
           const MiaPresence(
             size: 68,
@@ -413,6 +424,25 @@ class _Header extends StatelessWidget {
                 '${stats.paragraphs} paragraphs',
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
+              if (exam != null) ...<Widget>[
+                const SizedBox(height: 8),
+                Text(
+                  '${exam.label}: ${exam.display} / ${exam.scaleMax}',
+                  style: const TextStyle(
+                    color: AppColors.primaryBright,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  exam.note,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12.5,
+                    height: 1.4,
+                  ),
+                ),
+              ],
               if (rewards != null) ...<Widget>[
                 const SizedBox(height: 10),
                 Wrap(
@@ -458,41 +488,68 @@ class _Header extends StatelessWidget {
 }
 
 class _ScoreRing extends StatelessWidget {
-  const _ScoreRing({required this.score});
+  const _ScoreRing({
+    required this.fraction,
+    required this.center,
+    required this.semantics,
+    this.caption,
+  });
 
-  final int score;
+  final double fraction;
+  final String center;
+  final String semantics;
+
+  /// Small label under the value (e.g. "IELTS").
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Practice score $score percent',
-      child: SizedBox(
-        width: 78,
-        height: 78,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0, end: score / 100),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (BuildContext context, double value, Widget? _) => Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              CircularProgressIndicator(
-                value: value,
-                strokeWidth: 7,
-                backgroundColor: AppColors.white08,
-                color: AppColors.primary,
-              ),
-              Center(
-                child: Text(
-                  '${(value * 100).round()}%',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
+      label: semantics,
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: 78,
+          height: 78,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: fraction.clamp(0, 1)),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (BuildContext context, double value, Widget? _) => Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                CircularProgressIndicator(
+                  value: value,
+                  strokeWidth: 7,
+                  backgroundColor: AppColors.white08,
+                  color: AppColors.primary,
+                ),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        center,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (caption != null)
+                        Text(
+                          caption!,
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -621,9 +678,9 @@ class _CriterionRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  for (int i = 0; i < 5; i++)
+                  for (int i = 0; i < criterion.maxScore; i++)
                     Container(
-                      width: 18,
+                      width: criterion.maxScore > 5 ? 11 : 18,
                       height: 6,
                       margin: const EdgeInsets.only(left: 3),
                       decoration: BoxDecoration(
@@ -636,7 +693,7 @@ class _CriterionRow extends StatelessWidget {
                   SizedBox(
                     width: 34,
                     child: Text(
-                      '${criterion.score}/5',
+                      '${criterion.score}/${criterion.maxScore}',
                       textAlign: TextAlign.right,
                       style: const TextStyle(
                         color: AppColors.textSecondary,
