@@ -2,6 +2,7 @@ import '../../../models/learning_memory.dart';
 import '../../../models/learning_profile.dart';
 import '../../../models/learning_session.dart';
 import '../../../models/progress.dart';
+import '../../../services/learning/personal_plan.dart';
 import '../../onboarding/assessment/level_assessment_data.dart';
 import '../../onboarding/assessment/level_assessment_result.dart';
 import '../content/grammar_content.dart';
@@ -120,6 +121,7 @@ class LessonEngine {
     final Set<String> interests = <String>{
       for (final String i in profile.interests) i.toLowerCase(),
       profile.primaryGoal.toLowerCase(),
+      ...PersonalPlan.from(profile).lessonTags,
     };
 
     Lesson? best;
@@ -182,6 +184,9 @@ class LessonEngine {
       }
     }
 
+    final PersonalPlan plan = PersonalPlan.from(profile);
+    int focusBonus(LessonSkill skill) => plan.bonusFor(planAreaOf(skill));
+
     LessonSkill pick;
     String why;
     if (weakSkill != null && weak.isNotEmpty) {
@@ -191,18 +196,28 @@ class LessonEngine {
     } else {
       final List<LessonSkill> order = LessonSkill.values.toList()
         ..sort((LessonSkill a, LessonSkill b) {
-          final int byCount = practiced[a]!.compareTo(practiced[b]!);
+          // Onboarding focus areas count as up to two lessons fewer.
+          final int byCount = (practiced[a]! - focusBonus(a)).compareTo(
+            practiced[b]! - focusBonus(b),
+          );
           if (byCount != 0) {
             return byCount;
           }
           final double ma = progress?.skills[a.name] ?? -1;
           final double mb = progress?.skills[b.name] ?? -1;
-          return ma.compareTo(mb);
+          final int byMastery = ma.compareTo(mb);
+          return byMastery != 0 ? byMastery : a.index.compareTo(b.index);
         });
       pick = order.first;
-      why = practiced[pick] == 0
+      final String practice = practiced[pick] == 0
           ? 'You have not completed a ${pick.label.toLowerCase()} lesson yet.'
           : '${pick.label} is where you have practiced least.';
+      final PlanFocus? focus = plan.focus
+          .where((PlanFocus f) => f.area == planAreaOf(pick))
+          .firstOrNull;
+      why = focus == null || focusBonus(pick) == 0
+          ? practice
+          : '${focus.reason} $practice';
     }
 
     final LessonChoice choice = select(
@@ -215,3 +230,11 @@ class LessonEngine {
     return LessonChoice(lesson: choice.lesson, reason: '$why ${choice.reason}');
   }
 }
+
+/// The plan area a lesson skill trains.
+PlanArea planAreaOf(LessonSkill skill) => switch (skill) {
+  LessonSkill.grammar => PlanArea.grammar,
+  LessonSkill.vocabulary => PlanArea.vocabulary,
+  LessonSkill.reading => PlanArea.reading,
+  LessonSkill.listening => PlanArea.listening,
+};

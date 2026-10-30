@@ -35,6 +35,13 @@ answer-specific feedback, retries, per-answer XP, combos, achievements, and
 local progress/memory updates. The optional placement estimate is not a
 certification.
 
+## Personal plan
+
+The onboarding answers become a plan shown on Home ("Your plan"): up to three
+focus areas with the learner's reason, the daily goal from the chosen pace
+(applied once) and, for school or academic goals, a link to the TOEFL/IELTS
+writing practice. Lesson recommendations favour the focus skills.
+
 ## Lessons and spaced review
 
 Learn → Grammar, Vocabulary, Reading or Listening opens a library of 36

@@ -6,6 +6,26 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Personal plan from the onboarding answers
+
+## Added
+
+* Personal plan built from the onboarding answers: up to three focus areas
+  ranked from the difficulties, main and secondary goals (strengths lower an
+  area), each with the learner's own reason; daily minutes from the chosen
+  pace; lesson tags from goals and interests.
+* "Your plan" card on Home: focus areas (each opens its activity), daily goal
+  and, for school or academic goals, a link to the TOEFL/IELTS writing practice.
+* The daily goal follows the onboarding pace once (relaxed 10, regular 20,
+  intensive 30, adaptive 15 minutes); later changes are never overwritten.
+
+## Changed
+
+* Lesson recommendations favour the focus skills (up to two lessons'
+  advantage) and say why ("You said grammar is hard for you."). Lesson choice
+  also uses interests mapped to lesson tags (business → career, music →
+  culture...). A recent weakness still comes first.
+
 # [Unreleased] — More lessons, lesson library and spaced review
 
 ## Added
