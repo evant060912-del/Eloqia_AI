@@ -17,6 +17,7 @@ import 'exam_formats.dart';
 import 'exam_progress.dart';
 import 'exam_score_store.dart';
 import 'exam_widgets.dart';
+import 'mock_exam_screen.dart';
 
 /// TOEFL or IELTS space: the official formats, the learner's score history,
 /// advice on the weakest criterion and the practice tasks.
@@ -292,6 +293,22 @@ class _ExamSpaceScreenState extends State<ExamSpaceScreen> {
                         const SizedBox(height: 14),
                         const WritingServerNotice(),
                       ],
+                      const SizedBox(height: 16),
+                      _MockCard(
+                        exam: _exam,
+                        onOpen: () async {
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute<void>(
+                              builder: (_) => MockExamScreen(
+                                exam: _exam,
+                                profile: widget.profile,
+                                client: widget.client,
+                              ),
+                            ),
+                          );
+                          await _load();
+                        },
+                      ),
                       const WritingSectionTitle('Your progress'),
                       ..._progressSection(),
                       const WritingSectionTitle('Practise each task'),
@@ -390,6 +407,71 @@ class _ExamSpaceScreenState extends State<ExamSpaceScreen> {
         ),
       ],
     ];
+  }
+}
+
+class _MockCard extends StatelessWidget {
+  const _MockCard({required this.exam, required this.onOpen});
+
+  final ExamKind exam;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        key: const Key('mock-exam-card'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: <Widget>[
+              const Icon(
+                Icons.assignment_turned_in_outlined,
+                color: AppColors.primaryBright,
+                size: 30,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'Full mock exam',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      exam == ExamKind.toefl
+                          ? 'Writing and Speaking in exam order and timing, '
+                                'then one report.'
+                          : 'Writing Tasks 1 and 2 and Speaking Parts 1 to 3, '
+                                'then your bands.',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

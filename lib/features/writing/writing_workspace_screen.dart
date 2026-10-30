@@ -34,6 +34,7 @@ class WritingWorkspaceScreen extends StatefulWidget {
     required this.client,
     this.initialText,
     this.notes,
+    this.autoStartTimer = false,
   });
 
   final WritingTask task;
@@ -45,6 +46,9 @@ class WritingWorkspaceScreen extends StatefulWidget {
   /// Text to revise (from a past review); otherwise the saved draft.
   final String? initialText;
   final MiaLearningNotes? notes;
+
+  /// Mock exams: the official timer starts as soon as the task opens.
+  final bool autoStartTimer;
 
   @override
   State<WritingWorkspaceScreen> createState() => _WritingWorkspaceScreenState();
@@ -82,6 +86,11 @@ class _WritingWorkspaceScreenState extends State<WritingWorkspaceScreen>
     final Duration? limit = _task.timeLimit;
     if (limit != null) _clock = ExamClock(limit: limit);
     _restore();
+    if (widget.autoStartTimer && _clock != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startClock();
+      });
+    }
   }
 
   void _startClock() {
