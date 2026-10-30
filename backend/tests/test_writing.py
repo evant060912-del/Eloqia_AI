@@ -186,7 +186,7 @@ def test_instructions_follow_genre_level_and_correction_style() -> None:
 def test_every_genre_has_criteria_and_guidance() -> None:
     exams = set(EXAM_OF_GENRE)
     assert len(set(GENRE_CRITERIA) - exams) == 13
-    assert len(exams) == 5
+    assert len(exams) == 7
     for genre in GENRE_CRITERIA:
         request = _request(genre=genre, source_text="Source.")
         text = build_review_instructions(request)
@@ -260,6 +260,36 @@ def test_toefl_tasks_use_the_five_point_rubric() -> None:
 def test_regular_genres_have_no_exam_estimate() -> None:
     result = parse_review_output(json.dumps(_review()), _request())
     assert result.exam_estimate is None
+
+
+def test_speaking_transcripts_are_reviewed_without_pronunciation() -> None:
+    request = _request(
+        genre="ielts_speaking",
+        task_title="IELTS Speaking Part 2",
+        min_words=0,
+        max_words=0,
+        text="i think the best place is the park near my home because",
+    )
+    text = build_review_instructions(request)
+    assert "speech-recognition transcript" in text
+    assert "Never comment on or score pronunciation" in text
+    assert "score from 0 to 9" in text
+    review = _review(
+        criteria=[
+            {"criterion": "fluency_coherence", "score": 6, "comment": ""},
+            {"criterion": "lexical_resource", "score": 6, "comment": ""},
+            {"criterion": "grammatical_range_accuracy", "score": 7, "comment": ""},
+        ],
+        corrections=[],
+    )
+    result = parse_review_output(json.dumps(review), request)
+    assert result.exam_estimate is not None
+    assert (result.exam_estimate.exam, result.exam_estimate.value) == ("IELTS", 6.5)
+    assert result.criteria[0].label == "Fluency and Coherence"
+
+    interview = build_review_instructions(_request(genre="toefl_interview"))
+    assert "Take an Interview" in interview
+    assert "score from 0 to 5" in interview
 
 
 def test_review_rules_use_the_task_scale() -> None:

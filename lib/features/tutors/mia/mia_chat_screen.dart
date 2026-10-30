@@ -8,6 +8,7 @@ import '../../../services/voice/voice_output_provider.dart';
 import '../../../services/voice/voice_session_client.dart'
     show OidcAccessTokenProvider;
 import '../../../theme/app_colors.dart';
+import '../../speaking/widgets/mic_button.dart';
 import 'mia_session_summary_screen.dart';
 import 'widgets/mia_presence.dart';
 
@@ -58,6 +59,10 @@ class _ChatEntry {
 
 class _MiaChatScreenState extends State<MiaChatScreen> {
   final TextEditingController _input = TextEditingController();
+
+  /// Text typed before the current dictation (dictation is appended).
+  String _beforeDictation = '';
+  bool _dictating = false;
   final ScrollController _scroll = ScrollController();
   final List<_ChatEntry> _entries = <_ChatEntry>[];
 
@@ -686,6 +691,24 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
     );
   }
 
+  /// The microphone fills the input; the learner reads it, edits it if the
+  /// recogniser misheard, then sends it.
+  void _onDictation(String text, bool isFinal) {
+    if (!_dictating) {
+      _dictating = true;
+      _beforeDictation = _input.text.trimRight();
+    }
+    final String joined = <String>[
+      if (_beforeDictation.isNotEmpty) _beforeDictation,
+      if (text.trim().isNotEmpty) text.trim(),
+    ].join(' ');
+    _input.value = TextEditingValue(
+      text: joined,
+      selection: TextSelection.collapsed(offset: joined.length),
+    );
+    if (isFinal) _dictating = false;
+  }
+
   Widget _buildComposer() {
     final bool writing = _mode == MiaChatMode.writing;
     return Container(
@@ -727,6 +750,12 @@ class _MiaChatScreenState extends State<MiaChatScreen> {
             ),
           ),
           const SizedBox(width: 8),
+          MicButton(
+            onText: _onDictation,
+            enabled: !_thinking && !_endingSession,
+            maxDuration: Duration(minutes: writing ? 3 : 1),
+          ),
+          const SizedBox(width: 6),
           IconButton.filled(
             key: const Key('mia-chat-send'),
             tooltip: 'Envoyer',

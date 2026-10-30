@@ -309,7 +309,7 @@ class _ExamCards extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  '${exam.label} Writing',
+                                  '${exam.label} writing and speaking',
                                   style: const TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 16,

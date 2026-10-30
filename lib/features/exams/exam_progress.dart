@@ -84,7 +84,9 @@ class ExamAttempt {
   double get ratio => scaleMax == 0 ? 0 : value / scaleMax;
 
   /// "6.5", "4", "8/10".
-  String get display => type == ExamTaskType.toeflBuildSentence
+  String get display =>
+      type == ExamTaskType.toeflBuildSentence ||
+          type == ExamTaskType.toeflListenRepeat
       ? '${value.round()}/$scaleMax'
       : formatScore(value);
 
@@ -93,6 +95,9 @@ class ExamAttempt {
   Map<String, double> get criterionRatios {
     if (type == ExamTaskType.toeflBuildSentence) {
       return <String, double>{'sentence_building': ratio};
+    }
+    if (type == ExamTaskType.toeflListenRepeat) {
+      return <String, double>{'sentence_repetition': ratio};
     }
     if (criteriaMax <= 0) return const <String, double>{};
     return <String, double>{

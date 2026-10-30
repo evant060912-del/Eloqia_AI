@@ -6,6 +6,36 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Microphone and speaking practice
+
+## Added
+
+* Microphone with the free speech recognition of the device or browser
+  (`speech_to_text`; Chrome, Android, iOS). Nothing is recorded or stored,
+  only the recognised text. Hidden when no recogniser is available.
+* Mia chat: dictate with the microphone, read and correct the text, then send.
+* Speaking practice in the TOEFL and IELTS spaces:
+  - TOEFL Listen and Repeat: 2 sets of 7 sentences (8 to 12 s windows),
+    compared word by word on the device (recognised words, not
+    pronunciation);
+  - TOEFL Take an Interview: 3 topics of 4 questions, 45 s each;
+  - IELTS Part 1 (3 topics), Part 2 cue cards with 1 minute of preparation
+    and up to 2 minutes of speaking (4 cards), Part 3 discussions (3 topics).
+* Prompts are read by the free device voices; a typing fallback keeps every
+  task usable without a microphone.
+* Local measures per answer (words, words per minute, hesitation words) and
+  Mia's review of the transcript (`toefl_interview` 0–5, `ielts_speaking`
+  0–9 on three criteria). Pronunciation is never scored.
+* Speaking scores join the exam history, trends and weakest-criterion advice.
+
+## Changed
+
+* Server: speaking genres reviewed from transcripts (ignore punctuation and
+  likely recognition errors, no pronunciation judgement).
+* Exam spaces are titled "TOEFL practice" and "IELTS practice".
+* `pubspec.yaml`: `speech_to_text: ^7.3.0` (run `flutter pub get`);
+  microphone and speech recognition permissions for Android and iOS.
+
 # [Unreleased] — Listening with free device voices and accents
 
 ## Added

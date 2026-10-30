@@ -68,5 +68,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Eloqia listens to your answers so you can practise speaking English.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Eloqia turns your spoken answers into text so you can review them.</string>
 </dict>
 </plist>
