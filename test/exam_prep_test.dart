@@ -333,6 +333,8 @@ void main() {
       expect(progress.untried(ExamKind.toefl), <ExamTaskType>[
         ExamTaskType.toeflEmail,
         ExamTaskType.toeflDiscussion,
+        ExamTaskType.toeflListenRepeat,
+        ExamTaskType.toeflInterview,
       ]);
       expect(progress.trend(ExamTaskType.ieltsTask2), <double>[6.5]);
       expect(roundHalfBand(6.25), 6.5);
@@ -473,7 +475,7 @@ void main() {
     testWidgets('IELTS space lists the tasks and the format', (
       WidgetTester tester,
     ) async {
-      await tester.binding.setSurfaceSize(const Size(430, 2600));
+      await tester.binding.setSurfaceSize(const Size(430, 4200));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         MaterialApp(
@@ -484,7 +486,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('IELTS Writing'), findsOneWidget);
+      expect(find.text('IELTS practice'), findsOneWidget);
+      expect(find.text('Speaking'), findsWidgets);
       expect(find.text('Task 2 Essay'), findsOneWidget);
       expect(find.text('Task 1 Academic'), findsOneWidget);
       expect(find.textContaining('No score yet'), findsOneWidget);

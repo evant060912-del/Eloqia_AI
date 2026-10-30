@@ -20,6 +20,7 @@ dependencies:
   flutter_tts: ^4.2.5
   provider: ^6.1.5
   just_audio: ^0.10.6
+  speech_to_text: ^7.3.0
 
 dev_dependencies:
   flutter_test:

@@ -35,6 +35,16 @@ answer-specific feedback, retries, per-answer XP, combos, achievements, and
 local progress/memory updates. The optional placement estimate is not a
 certification.
 
+## Microphone and speaking
+
+The microphone uses the free speech recognition of the device or browser
+(Chrome recommended on a computer); only the recognised text is kept. In the
+chat with Mia, learners dictate, read and correct, then send. The TOEFL and
+IELTS spaces include speaking practice: Listen and Repeat (scored word by word
+on the device), Take an Interview, and IELTS Parts 1 to 3 (Mia reviews the
+transcript). Pronunciation is not scored. After pulling, run
+`flutter pub get` (new package `speech_to_text`).
+
 ## Listening
 
 Dialogues are read by the free voices installed on the device, with American,

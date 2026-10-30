@@ -72,6 +72,9 @@ Genre = Literal[
     "ielts_task1_academic",
     "ielts_task1_general",
     "ielts_task2",
+    # Speaking practice: the text is a speech-recognition transcript.
+    "toefl_interview",
+    "ielts_speaking",
 ]
 
 Category = Literal[
@@ -136,6 +139,15 @@ CRITERIA: dict[str, str] = {
     "contribution": "a clear, relevant opinion that adds to the discussion",
     "engagement": "builds on or responds to the other students' posts",
     "language_use": "range and accuracy of grammar and vocabulary",
+    # Speaking (from a transcript: pronunciation cannot be judged).
+    "fluency_coherence": (
+        "speaks at length without long hesitation, ideas linked and easy "
+        "to follow (judged from the transcript)"
+    ),
+    "relevance_development": (
+        "answers the question directly and develops it with reasons, "
+        "examples or details"
+    ),
 }
 
 # Weights per genre: only what matters for that kind of writing.
@@ -214,6 +226,13 @@ GENRE_CRITERIA: dict[str, dict[str, int]] = {
     "toefl_discussion": {
         "contribution": 1, "engagement": 1, "language_use": 1,
     },
+    "toefl_interview": {
+        "relevance_development": 1, "coherence": 1, "language_use": 1,
+    },
+    "ielts_speaking": {
+        "fluency_coherence": 1, "lexical_resource": 1,
+        "grammatical_range_accuracy": 1,
+    },
 }
 
 # Scale of each criterion score: IELTS bands 0-9, TOEFL task rubric 0-5,
@@ -224,6 +243,8 @@ EXAM_OF_GENRE: dict[str, str] = {
     "ielts_task2": "IELTS",
     "toefl_email": "TOEFL",
     "toefl_discussion": "TOEFL",
+    "toefl_interview": "TOEFL",
+    "ielts_speaking": "IELTS",
 }
 SCALE_MAX: dict[str, int] = {"IELTS": 9, "TOEFL": 5}
 
@@ -234,6 +255,16 @@ NEEDS_SOURCE = {"summary", "ielts_task1_academic", "toefl_discussion"}
 def scale_max(genre: str) -> int:
     exam = EXAM_OF_GENRE.get(genre)
     return SCALE_MAX[exam] if exam else 5
+
+SPEAKING_TRANSCRIPT = (
+    "The LEARNER TEXT is an automatic speech-recognition transcript of a "
+    "spoken answer. Ignore punctuation, capital letters and spelling, and "
+    "words that look misrecognised (say so if unsure). Never comment on or "
+    "score pronunciation: it cannot be heard in a transcript. Hesitation "
+    "words (um, uh, like) are evidence of fluency only when frequent. "
+    "Correct only clear grammar and vocabulary errors, and make "
+    "revised_version a natural spoken answer, not a written essay."
+)
 
 GENRE_GUIDANCE: dict[str, str] = {
     "email": (
@@ -329,6 +360,21 @@ GENRE_GUIDANCE: dict[str, str] = {
         "every point listed in the scenario is addressed, that the tone and "
         "email conventions suit the recipient, and the range and accuracy of "
         "the language. An email should sound like an email, not an essay."
+    ),
+    "toefl_interview": (
+        "EXAM: TOEFL iBT Speaking, Take an Interview (2026 format): spoken "
+        "answers of about 45 seconds each to an interviewer's questions on "
+        "one topic. The TASK PROMPT lists the questions; the transcript "
+        "holds the answers in order. Check that each question is answered "
+        "directly and developed, that ideas are connected, and the range and "
+        "accuracy of the language. " + SPEAKING_TRANSCRIPT
+    ),
+    "ielts_speaking": (
+        "EXAM: IELTS Speaking (Part 1 short answers, Part 2 a long turn of "
+        "up to two minutes, or Part 3 discussion; the TASK TITLE says which). "
+        "Score Fluency and Coherence, Lexical Resource, Grammatical Range "
+        "and Accuracy. Pronunciation, the fourth IELTS criterion, is not "
+        "assessed here. " + SPEAKING_TRANSCRIPT
     ),
     "toefl_discussion": (
         "EXAM: TOEFL iBT Write for an Academic Discussion (2026 format, 10 "
@@ -781,6 +827,8 @@ CRITERION_LABELS: dict[str, str] = {
     "contribution": "Contribution",
     "engagement": "Engagement with others",
     "language_use": "Language use",
+    "fluency_coherence": "Fluency and Coherence",
+    "relevance_development": "Relevance and development",
 }
 
 
