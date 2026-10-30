@@ -1,3 +1,4 @@
+import '../../../services/voice/listening_accents.dart';
 import '../../onboarding/assessment/level_assessment_data.dart';
 
 enum LessonSkill { grammar, vocabulary, reading, listening }
@@ -208,10 +209,13 @@ class LessonActivity {
 }
 
 class AudioLine {
-  const AudioLine(this.speaker, this.text);
+  const AudioLine(this.speaker, this.text, {this.accent});
 
   final String speaker;
   final String text;
+
+  /// Accent of the speaker's voice; null keeps the default voice.
+  final ListeningAccent? accent;
 }
 
 class Lesson {
@@ -260,6 +264,12 @@ class Lesson {
     for (final LessonActivity a in activities)
       if (a.kind == kind) ...a.exercises,
   ];
+
+  /// Accents heard in the audio (listening library filters).
+  Set<ListeningAccent> get accents => <ListeningAccent>{
+    for (final AudioLine line in audio)
+      if (line.accent != null) line.accent!,
+  };
 
   List<Exercise> get allExercises => <Exercise>[
     for (final LessonActivity a in activities) ...a.exercises,

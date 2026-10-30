@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app/persistent_app_controller.dart';
 import 'features/splash/splash_screen.dart';
 import 'services/voice/backend_speech_transport.dart';
+import 'services/voice/listening_voices.dart';
 import 'services/voice/voice_output_provider.dart';
 import 'theme/app_theme.dart';
 
@@ -28,6 +29,9 @@ Future<void> main() async {
   if (speech != null) {
     MiaVoice.configure(speech);
   }
+  // Listening dialogues use the device's free voices (several speakers and
+  // accents, no cost); Mia keeps her own voice.
+  ListeningVoices.useDeviceVoices();
 
   runApp(const EloqiaApp());
 }

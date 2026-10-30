@@ -8,6 +8,7 @@ import '../../onboarding/assessment/level_assessment_result.dart';
 import '../content/grammar_content.dart';
 import '../content/grammar_content_more.dart';
 import '../content/listening_content.dart';
+import '../content/listening_content_more.dart';
 import '../content/reading_content.dart';
 import '../content/reading_content_more.dart';
 import '../content/vocabulary_content.dart';
@@ -25,6 +26,7 @@ class LessonCatalog {
     ...readingLessons,
     ...moreReadingLessons,
     ...listeningLessons,
+    ...moreListeningLessons,
   ]);
 
   static final Map<String, ({Exercise exercise, Lesson lesson})> _exercises =
