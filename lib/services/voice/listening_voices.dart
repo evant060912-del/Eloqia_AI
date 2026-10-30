@@ -30,6 +30,12 @@ abstract class ListeningVoice {
 
   /// Says where the audio comes from, for the player.
   String get description;
+
+  /// Starts a new dialogue (voices are shared out again).
+  void beginDialogue();
+
+  /// Name of the voice a speaker gets (null when not known).
+  Future<String?> voiceName({required String speaker, ListeningAccent? accent});
 }
 
 /// Entry point used by the listening player.
@@ -76,6 +82,15 @@ class MiaListeningVoice implements ListeningVoice {
 
   @override
   Future<void> stop() => MiaVoice.provider.stop();
+
+  @override
+  Future<String?> voiceName({
+    required String speaker,
+    ListeningAccent? accent,
+  }) async => null;
+
+  @override
+  void beginDialogue() {}
 }
 
 /// Text-to-speech voices installed on the device, through `flutter_tts`.
@@ -90,6 +105,40 @@ class DeviceListeningVoice implements ListeningVoice {
   final ValueNotifier<bool> _speaking = ValueNotifier<bool>(false);
   int _generation = 0;
 
+  /// Order in which speakers were first heard: gives each one a slightly
+  /// different pitch, so two speakers stay distinct even on a device with a
+  /// single English voice.
+  final Map<String, int> _slots = <String, int>{};
+  static const List<double> _pitches = <double>[1.0, 0.85, 1.15, 0.93, 1.07];
+
+  double pitchFor(String speaker) => speaker == 'Mia'
+      ? 1.0
+      : _pitches[_slots.putIfAbsent(speaker, () => _slots.length) %
+            _pitches.length];
+
+  @override
+  void beginDialogue() {
+    _slots.clear();
+    final Future<VoiceCasting>? casting = _casting;
+    if (casting != null) unawaited(casting.then((VoiceCasting c) => c.reset()));
+  }
+
+  DeviceVoice? _voiceOf(
+    VoiceCasting casting,
+    String speaker,
+    ListeningAccent? accent,
+  ) => casting.voiceFor(
+    speaker,
+    accent ?? ListeningAccent.american,
+    strict: accent != null,
+  );
+
+  @override
+  Future<String?> voiceName({
+    required String speaker,
+    ListeningAccent? accent,
+  }) async => _voiceOf(await _load(), speaker, accent)?.name;
+
   @override
   ValueListenable<bool> get speaking => _speaking;
 
@@ -100,14 +149,37 @@ class DeviceListeningVoice implements ListeningVoice {
 
   FlutterTts get _engine => _tts ??= _injected ?? FlutterTts();
 
-  Future<VoiceCasting> _load() => _casting ??= () async {
-    try {
-      await _engine.awaitSpeakCompletion(true);
-      return VoiceCasting(DeviceVoice.parse(await _engine.getVoices));
-    } on Object {
+  /// Browsers (Chrome) often list no voice until a moment after the page
+  /// loads: retry a few times, and never cache an empty list.
+  Future<VoiceCasting> _load() {
+    final Future<VoiceCasting> loading = _casting ??= () async {
+      try {
+        await _engine.awaitSpeakCompletion(true);
+        for (int attempt = 0; attempt < 6; attempt++) {
+          final List<DeviceVoice> voices = DeviceVoice.parse(
+            await _engine.getVoices,
+          );
+          if (voices.any((DeviceVoice v) => v.isEnglish)) {
+            return VoiceCasting(voices);
+          }
+          await Future<void>.delayed(retryDelay);
+        }
+      } on Object catch (error) {
+        debugPrint('Listening voices unavailable: $error');
+      }
       return VoiceCasting(const <DeviceVoice>[]);
-    }
-  }();
+    }();
+    return loading.then((VoiceCasting casting) {
+      if (!casting.hasEnglish && identical(_casting, loading)) {
+        _casting = null;
+      }
+      return casting;
+    });
+  }
+
+  /// Wait between two voice-list attempts (shorter in tests).
+  @visibleForTesting
+  static Duration retryDelay = const Duration(milliseconds: 300);
 
   @override
   Future<bool> isAvailable() async => (await _load()).hasEnglish;
@@ -125,14 +197,18 @@ class DeviceListeningVoice implements ListeningVoice {
     final int generation = ++_generation;
     final VoiceCasting casting = await _load();
     final ListeningAccent chosen = accent ?? ListeningAccent.american;
-    final DeviceVoice? voice = casting.voiceFor(speaker, chosen);
+    final DeviceVoice? voice = _voiceOf(casting, speaker, accent);
     if (generation != _generation) return;
     try {
       if (voice != null) {
+        // Language first, then the voice: browsers keep the utterance's
+        // language in step with its voice this way.
+        await _engine.setLanguage(voice.rawLocale);
         await _engine.setVoice(voice.toMap());
       } else {
         await _engine.setLanguage(chosen.locale);
       }
+      await _engine.setPitch(pitchFor(speaker));
       // flutter_tts rates: about 1.0 is normal on the web, 0.5 on mobile.
       final double normal = kIsWeb ? 1.0 : 0.5;
       await _engine.setSpeechRate(slow ? normal * 0.75 : normal);

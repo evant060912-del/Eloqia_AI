@@ -8,6 +8,21 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 # [Unreleased] — Microphone and speaking practice
 
+## Fixed
+
+* Listening voices in Chrome: the voice list is retried when the browser has
+  not loaded it yet (it was empty at first and never reloaded).
+* A speaker whose accent has no installed voice now gets another English
+  voice that no other speaker uses, so dialogues never sound like one voice.
+* The voice is selected with the locale exactly as the engine reported it,
+  after setting the language (browsers keep both in step).
+* Voices are shared out again for each dialogue; lines without an accent
+  (older dialogues) also get one voice per speaker, American first.
+* Each speaker gets a slightly different pitch, so speakers stay distinct even
+  on a device with a single English voice.
+* The player shows the voice each speaker gets (e.g. "Barista · British,
+  Google UK English Female"), to check what the device provides.
+
 ## Added
 
 * Microphone with the free speech recognition of the device or browser

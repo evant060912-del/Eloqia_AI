@@ -24,7 +24,11 @@ enum ListeningAccent {
 
 /// One voice installed on the device (as reported by the speech engine).
 class DeviceVoice {
-  const DeviceVoice({required this.name, required this.locale});
+  const DeviceVoice({
+    required this.name,
+    required this.locale,
+    String? rawLocale,
+  }) : rawLocale = rawLocale ?? locale;
 
   /// Reads the maps returned by `flutter_tts` (`name`, `locale`), skipping
   /// anything malformed.
@@ -36,19 +40,30 @@ class DeviceVoice {
       final Object? name = item['name'];
       final Object? locale = item['locale'];
       if (name is! String || locale is! String || name.isEmpty) continue;
-      voices.add(DeviceVoice(name: name, locale: normaliseLocale(locale)));
+      voices.add(
+        DeviceVoice(
+          name: name,
+          locale: normaliseLocale(locale),
+          rawLocale: locale,
+        ),
+      );
     }
     return voices;
   }
 
   final String name;
+
+  /// Normalised ("en-GB"), for matching accents.
   final String locale;
+
+  /// As reported by the engine, which needs it back to select the voice.
+  final String rawLocale;
 
   bool get isEnglish => locale.toLowerCase().startsWith('en');
 
   Map<String, String> toMap() => <String, String>{
     'name': name,
-    'locale': locale,
+    'locale': rawLocale,
   };
 }
 
@@ -72,6 +87,12 @@ class VoiceCasting {
 
   bool get hasEnglish => _voices.isNotEmpty;
 
+  /// A new dialogue: every voice is free again.
+  void reset() {
+    _cast.clear();
+    _used.clear();
+  }
+
   /// Accents with at least one installed voice.
   Set<ListeningAccent> get accents => <ListeningAccent>{
     for (final ListeningAccent a in ListeningAccent.values)
@@ -82,17 +103,44 @@ class VoiceCasting {
       .where((DeviceVoice v) => v.locale == accent.locale)
       .toList(growable: false);
 
-  /// The voice for [speaker]; null means "use the engine's default voice for
-  /// the accent's language" (no matching voice installed).
-  DeviceVoice? voiceFor(String speaker, ListeningAccent accent) {
-    final String key = '${accent.name}|$speaker';
+  /// The voice for [speaker]. Without a voice for the accent, another
+  /// English voice that no other speaker uses yet, so the speakers still
+  /// sound different; null only when the device has no English voice.
+  ///
+  /// With [strict] false (a line with no accent), any English voice not used
+  /// yet is preferred, American first, so speakers never share a voice when
+  /// the device has enough of them.
+  DeviceVoice? voiceFor(
+    String speaker,
+    ListeningAccent accent, {
+    bool strict = true,
+  }) {
+    final String key = '${strict ? accent.name : 'any'}|$speaker';
     if (_cast.containsKey(key)) return _cast[key];
     final List<DeviceVoice> candidates = voicesFor(accent);
+    final Set<String> taken = <String>{
+      for (final DeviceVoice? v in _cast.values)
+        if (v != null) v.name,
+    };
     DeviceVoice? voice;
-    if (candidates.isNotEmpty) {
+    if (!strict && _voices.isNotEmpty) {
+      final List<DeviceVoice> preferred = <DeviceVoice>[
+        ...candidates,
+        ..._voices.where((DeviceVoice v) => !candidates.contains(v)),
+      ];
+      voice = preferred.firstWhere(
+        (DeviceVoice v) => !taken.contains(v.name),
+        orElse: () => preferred[_cast.length % preferred.length],
+      );
+    } else if (candidates.isNotEmpty) {
       final int index = _used[accent] ?? 0;
       voice = candidates[index % candidates.length];
       _used[accent] = index + 1;
+    } else if (_voices.isNotEmpty) {
+      voice = _voices.firstWhere(
+        (DeviceVoice v) => !taken.contains(v.name),
+        orElse: () => _voices[_cast.length % _voices.length],
+      );
     }
     _cast[key] = voice;
     return voice;

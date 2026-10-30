@@ -6,14 +6,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// These styles are hints for the voice backend. The backend must translate
 /// them into supported Cartesia parameters or appropriate text delivery.
-enum MiaSpeechStyle {
-  warm,
-  excited,
-  encouraging,
-  playful,
-  serious,
-  calm,
-}
+enum MiaSpeechStyle { warm, excited, encouraging, playful, serious, calm }
 
 /// Contract shared by Mia's voice output implementations.
 abstract class VoiceProvider {
@@ -44,9 +37,8 @@ typedef VoiceOutputProvider = VoiceProvider;
 ///
 /// Cartesia credentials must remain on the backend.
 class CartesiaVoiceOutputProvider implements VoiceProvider {
-  CartesiaVoiceOutputProvider({
-    required CloudSpeechTransport transport,
-  }) : _transport = transport;
+  CartesiaVoiceOutputProvider({required CloudSpeechTransport transport})
+    : _transport = transport;
 
   final CloudSpeechTransport _transport;
 
@@ -77,30 +69,12 @@ class CartesiaVoiceOutputProvider implements VoiceProvider {
   /// Removes common Markdown formatting before speech synthesis.
   static String clean(String text) {
     return text
-        .replaceAll(
-          RegExp(r'```[\s\S]*?```'),
-          ' ',
-        )
-        .replaceAll(
-          RegExp(r'`([^`]*)`'),
-          r'$1',
-        )
-        .replaceAll(
-          RegExp(r'\[([^\]]+)\]\([^)]+\)'),
-          r'$1',
-        )
-        .replaceAll(
-          RegExp(r'https?://\S+'),
-          ' ',
-        )
-        .replaceAll(
-          RegExp(r'[*_~#>]'),
-          '',
-        )
-        .replaceAll(
-          RegExp(r'\s+'),
-          ' ',
-        )
+        .replaceAll(RegExp(r'```[\s\S]*?```'), ' ')
+        .replaceAll(RegExp(r'`([^`]*)`'), r'$1')
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1')
+        .replaceAll(RegExp(r'https?://\S+'), ' ')
+        .replaceAll(RegExp(r'[*_~#>]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
 
@@ -126,9 +100,7 @@ class CartesiaVoiceOutputProvider implements VoiceProvider {
 
     if (spoken.isEmpty) return;
 
-    if (!speedFactor.isFinite ||
-        speedFactor < 0.6 ||
-        speedFactor > 2.0) {
+    if (!speedFactor.isFinite || speedFactor < 0.6 || speedFactor > 2.0) {
       throw ArgumentError.value(
         speedFactor,
         'speedFactor',
