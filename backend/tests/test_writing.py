@@ -262,6 +262,42 @@ def test_regular_genres_have_no_exam_estimate() -> None:
     assert result.exam_estimate is None
 
 
+def test_review_rules_use_the_task_scale() -> None:
+    ielts = build_review_instructions(_request(genre="ielts_task2"))
+    assert "score from 0 to 9" in ielts
+    assert "score from 0 to 5" not in ielts
+    toefl = build_review_instructions(_request(genre="toefl_email"))
+    assert "score from 0 to 5" in toefl
+    regular = build_review_instructions(_request())
+    assert "score from 0 to 5" in regular
+
+
+def test_timed_attempts_report_the_time_used() -> None:
+    request = _request(
+        genre="ielts_task2",
+        time_limit_seconds=40 * 60,
+        time_used_seconds=42 * 60 + 5,
+    )
+    message = build_review_message(request)
+    assert "TIMING: limit 40 min 00 s, used 42 min 05 s (over the limit)." in message
+    assert "TIMING:" in build_review_instructions(request)
+
+    in_time = build_review_message(
+        _request(genre="toefl_email", time_limit_seconds=420, time_used_seconds=400)
+    )
+    assert "(in time)" in in_time
+    untimed = _request()
+    assert "TIMING" not in build_review_message(untimed)
+    assert "TIMING" not in build_review_instructions(untimed)
+
+
+def test_timing_values_are_bounded() -> None:
+    with pytest.raises(ValidationError):
+        _request(time_limit_seconds=-1)
+    with pytest.raises(ValidationError):
+        _request(time_used_seconds=99999)
+
+
 def test_task_material_is_required_where_the_review_needs_it() -> None:
     for genre in ("ielts_task1_academic", "toefl_discussion"):
         with pytest.raises(ValidationError):

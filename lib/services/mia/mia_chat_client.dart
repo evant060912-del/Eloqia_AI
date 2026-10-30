@@ -367,6 +367,10 @@ class MiaChatClient {
           .toSet()
           .take(8)
           .toList(growable: false),
+      if (limit > 0) ...<String, dynamic>{
+        'time_limit_seconds': limit,
+        'time_used_seconds': (timeUsed?.inSeconds ?? 0).clamp(0, 14400),
+      },
     };
   }
 
@@ -437,8 +441,11 @@ class MiaChatClient {
     required Map<String, dynamic> context,
     String? sourceText,
     List<String> knownDifficulties = const <String>[],
+    Duration? timeLimit,
+    Duration? timeUsed,
   }) {
     final String trimmed = text.trim();
+    final int limit = (timeLimit?.inSeconds ?? 0).clamp(0, 7200);
     return <String, dynamic>{
       'genre': genre,
       'task_id': taskId,
@@ -474,6 +481,8 @@ class MiaChatClient {
     required LearningProfile profile,
     String? sourceText,
     List<String> knownDifficulties = const <String>[],
+    Duration? timeLimit,
+    Duration? timeUsed,
   }) async {
     final Object? decoded = await _post(
       '/v1/writing/review',
@@ -488,6 +497,8 @@ class MiaChatClient {
         context: VoiceSessionClient.learningContextFor(profile),
         sourceText: sourceText,
         knownDifficulties: knownDifficulties,
+        timeLimit: timeLimit,
+        timeUsed: timeUsed,
       ),
       timeout: const Duration(seconds: 100),
     );
