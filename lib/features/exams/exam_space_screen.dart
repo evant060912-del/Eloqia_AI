@@ -9,6 +9,8 @@ import '../writing/writing_review_screen.dart';
 import '../writing/writing_store.dart';
 import '../writing/writing_widgets.dart';
 import '../writing/writing_workspace_screen.dart';
+import '../speaking/speaking_session_screen.dart';
+import '../speaking/speaking_tasks.dart';
 import 'build_sentence.dart';
 import 'build_sentence_screen.dart';
 import 'exam_formats.dart';
@@ -63,7 +65,19 @@ class _ExamSpaceScreenState extends State<ExamSpaceScreen> {
   }
 
   Future<void> _practise(ExamTaskType type) async {
-    if (type == ExamTaskType.toeflBuildSentence) {
+    if (type.isSpeaking) {
+      final SpeakingSet? set = await _pickSpeakingSet(type);
+      if (set == null || !mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SpeakingSessionScreen(
+            set: set,
+            profile: widget.profile,
+            client: widget.client,
+          ),
+        ),
+      );
+    } else if (type == ExamTaskType.toeflBuildSentence) {
       final SentenceSet? set = await _pickSentenceSet();
       if (set == null || !mounted) return;
       await Navigator.of(context).push<void>(
@@ -121,6 +135,33 @@ class _ExamSpaceScreenState extends State<ExamSpaceScreen> {
     );
   }
 
+  Future<SpeakingSet?> _pickSpeakingSet(ExamTaskType type) {
+    final Set<String> done = _progress.attempts
+        .map((ExamAttempt a) => a.taskId)
+        .toSet();
+    return showModalBottomSheet<SpeakingSet>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.backgroundElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext context) => _PickerSheet<SpeakingSet>(
+        title: type.label,
+        subtitle: type.summary,
+        items: SpeakingCatalog.setsFor(type.apiValue),
+        label: (SpeakingSet s) => type == ExamTaskType.ieltsSpeaking
+            ? '${s.kind.label}: ${s.title}'
+            : s.title,
+        detail: (SpeakingSet s) => s.intro,
+        tags: (SpeakingSet s) => <String>[
+          s.items.length == 1 ? '1 cue card' : '${s.items.length} items',
+          if (done.contains(s.id)) 'Done',
+        ],
+      ),
+    );
+  }
+
   Future<SentenceSet?> _pickSentenceSet() {
     final Set<String> done = _progress.attempts
         .map((ExamAttempt a) => a.taskId)
@@ -149,6 +190,21 @@ class _ExamSpaceScreenState extends State<ExamSpaceScreen> {
   }
 
   Future<void> _openAttempt(ExamAttempt attempt) async {
+    if (attempt.type == ExamTaskType.toeflListenRepeat) {
+      final SpeakingSet? set = SpeakingCatalog.byId(attempt.taskId);
+      if (set == null) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SpeakingSessionScreen(
+            set: set,
+            profile: widget.profile,
+            client: widget.client,
+          ),
+        ),
+      );
+      await _load();
+      return;
+    }
     if (attempt.type == ExamTaskType.toeflBuildSentence) {
       final SentenceSet? set = BuildSentenceCatalog.byId(attempt.taskId);
       if (set == null) return;
@@ -207,7 +263,7 @@ class _ExamSpaceScreenState extends State<ExamSpaceScreen> {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         title: Text(
-          '${_exam.label} Writing',
+          '${_exam.label} practice',
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -428,6 +484,8 @@ class _TaskTypeCard extends StatelessWidget {
         ? WritingCatalog.tasksFor(
             WritingGenre.byApiValue(type.apiValue)!,
           ).length
+        : type.isSpeaking
+        ? SpeakingCatalog.setsFor(type.apiValue).length
         : BuildSentenceCatalog.sets.length;
     return WritingPanel(
       child: Column(
@@ -473,7 +531,11 @@ class _TaskTypeCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      type.isWriting ? 'last of ${type.scaleMax}' : 'last',
+                      type.isWriting ||
+                              type == ExamTaskType.toeflInterview ||
+                              type == ExamTaskType.ieltsSpeaking
+                          ? 'last of ${type.scaleMax}'
+                          : 'last',
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11.5,
@@ -491,7 +553,15 @@ class _TaskTypeCard extends StatelessWidget {
             children: <Widget>[
               WritingTag(type.timeLabel),
               if (type.minWords > 0) WritingTag('${type.minWords}+ words'),
-              WritingTag(type.isWriting ? '$count tasks' : '$count sets of 10'),
+              WritingTag(
+                type.isWriting
+                    ? '$count tasks'
+                    : type.isSpeaking
+                    ? '$count sets'
+                    : '$count sets of 10',
+              ),
+              if (type.isSpeaking)
+                const WritingTag('Speaking', color: AppColors.speaking),
             ],
           ),
           if (trend.length > 1) ...<Widget>[

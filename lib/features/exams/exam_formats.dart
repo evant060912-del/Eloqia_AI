@@ -11,16 +11,18 @@ enum ExamKind {
     'TOEFL',
     'TOEFL iBT',
     'ETS',
-    'Writing section of the TOEFL iBT (format introduced in January 2026): '
-        'about 23 minutes, three task types. Since January 2026, section '
-        'scores are reported on a 1–6 scale.',
+    'TOEFL iBT (format introduced in January 2026). Writing: about 23 '
+        'minutes, three task types. Speaking: about 8 minutes, Listen and '
+        'Repeat and an interview. Section scores are reported on a 1–6 '
+        'scale.',
   ),
   ielts(
     'IELTS',
     'IELTS',
     'the IELTS partners',
-    'IELTS Writing: 60 minutes, two tasks. Task 2 counts twice as much as '
-        'Task 1. Each task is marked from 0 to 9 on four criteria.',
+    'IELTS Writing: 60 minutes, two tasks; Task 2 counts twice as much as '
+        'Task 1. IELTS Speaking: 11 to 14 minutes in three parts. Each is '
+        'marked from 0 to 9 on four criteria.',
   );
 
   const ExamKind(this.label, this.fullName, this.owner, this.overview);

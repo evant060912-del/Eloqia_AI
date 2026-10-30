@@ -364,7 +364,9 @@ class _SpeakingSessionScreenState extends State<SpeakingSessionScreen> {
     final bool showPrompt = !repeat || _stage == _Stage.done;
     return <Widget>[
       Text(
-        '${_set.kind == SpeakingKind.ieltsPart2 ? 'Cue card' : 'Item ${_index + 1} of ${_set.items.length}'}',
+        _set.kind == SpeakingKind.ieltsPart2
+            ? 'Cue card'
+            : 'Item ${_index + 1} of ${_set.items.length}',
         style: const TextStyle(
           color: AppColors.textMuted,
           fontWeight: FontWeight.w700,
