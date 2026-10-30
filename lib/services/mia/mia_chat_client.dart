@@ -367,10 +367,6 @@ class MiaChatClient {
           .toSet()
           .take(8)
           .toList(growable: false),
-      if (limit > 0) ...<String, dynamic>{
-        'time_limit_seconds': limit,
-        'time_used_seconds': (timeUsed?.inSeconds ?? 0).clamp(0, 14400),
-      },
     };
   }
 
@@ -466,6 +462,10 @@ class MiaChatClient {
           .toSet()
           .take(8)
           .toList(growable: false),
+      if (limit > 0) ...<String, dynamic>{
+        'time_limit_seconds': limit,
+        'time_used_seconds': (timeUsed?.inSeconds ?? 0).clamp(0, 14400),
+      },
     };
   }
 

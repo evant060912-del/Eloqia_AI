@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../exams/exam_formats.dart';
+import '../exams/exam_tasks.dart';
+import '../exams/exam_visuals.dart';
+import 'writing_catalog_more.dart';
+
 /// Level bands used to pick tasks. Tasks are written for a band, and the
 /// review adapts to the learner's exact CEFR level on the server.
 enum WritingBand {
@@ -25,15 +30,17 @@ enum WritingGroup {
   everyday('Everyday writing'),
   arguments('Essays and arguments'),
   stories('Stories and description'),
-  information('Information');
+  information('Information'),
+  exams('Exam preparation');
 
   const WritingGroup(this.label);
 
   final String label;
 }
 
-/// The 13 kinds of writing. [apiValue] matches `Genre` in
-/// `backend/app/writing.py`, where each genre has its own criteria.
+/// The 13 kinds of writing, plus the 5 exam writing tasks (TOEFL, IELTS).
+/// [apiValue] matches `Genre` in `backend/app/writing.py`, where each genre
+/// has its own criteria.
 enum WritingGenre {
   email(
     'email',
@@ -211,6 +218,78 @@ enum WritingGenre {
     ],
     'Headings like "Introduction", "Findings" and "Recommendations" help the '
         'reader.',
+  ),
+
+  // ------------------------------------------------------- exam preparation
+  toeflEmail(
+    'toefl_email',
+    'TOEFL Write an Email',
+    'A real-life email in 7 minutes',
+    Icons.alternate_email_rounded,
+    WritingGroup.exams,
+    <String>[
+      'Cover every point listed in the situation',
+      'Use the right greeting, tone and closing for the reader',
+      'Stay clear and concise: it is an email, not an essay',
+    ],
+    'Read the points first and give each one or two sentences. Keep 30 '
+        'seconds to check the tone and your verbs.',
+  ),
+  toeflDiscussion(
+    'toefl_discussion',
+    'TOEFL Academic Discussion',
+    'A class forum post in 10 minutes',
+    Icons.forum_outlined,
+    WritingGroup.exams,
+    <String>[
+      'Answer the professor’s question with a clear opinion',
+      'Add a new reason or example',
+      'Respond to what the other students wrote',
+    ],
+    'Aim for at least 100 words: your opinion first, one developed reason, '
+        'and a sentence that agrees or disagrees with a classmate by name.',
+  ),
+  ieltsTask1Academic(
+    'ielts_task1_academic',
+    'IELTS Task 1 Academic',
+    'Describe a graph, table, process or map',
+    Icons.insert_chart_outlined_rounded,
+    WritingGroup.exams,
+    <String>[
+      'Write an overview of the main trends or stages',
+      'Select and compare the key features with accurate figures',
+      'Describe only what you see: no opinion, no causes',
+    ],
+    'Paraphrase the title in one sentence, give a two-sentence overview, '
+        'then two body paragraphs grouping similar data.',
+  ),
+  ieltsTask1General(
+    'ielts_task1_general',
+    'IELTS Task 1 General',
+    'A letter covering three points',
+    Icons.drafts_outlined,
+    WritingGroup.exams,
+    <String>[
+      'Make the purpose of the letter clear at once',
+      'Cover and develop all three bullet points',
+      'Keep a tone that suits the reader',
+    ],
+    'One paragraph per bullet point. The reader decides the tone: "Dear '
+        'Sir or Madam" for a company, "Hi Sam" for a friend.',
+  ),
+  ieltsTask2(
+    'ielts_task2',
+    'IELTS Task 2 Essay',
+    'An essay that answers every part of the question',
+    Icons.history_edu_outlined,
+    WritingGroup.exams,
+    <String>[
+      'Answer every part of the question with a clear position',
+      'Develop each main idea with explanation and examples',
+      'Organise paragraphs logically and link them',
+    ],
+    'Plan for five minutes: your position, two main ideas with an example '
+        'each, and a conclusion that restates your answer.',
   );
 
   const WritingGenre(
@@ -230,6 +309,19 @@ enum WritingGenre {
   final WritingGroup group;
   final List<String> objectives;
   final String approach;
+
+  bool get isExam => group == WritingGroup.exams;
+
+  /// The exam task this genre prepares (null for the studio genres).
+  ExamTaskType? get examTask => ExamTaskType.byApiValue(apiValue);
+
+  /// Official time for exam tasks; null for the studio genres.
+  Duration? get timeLimit => examTask?.timeLimit;
+
+  /// Studio genres, without the exam tasks.
+  static List<WritingGenre> get studio => WritingGenre.values
+      .where((WritingGenre g) => !g.isExam)
+      .toList(growable: false);
 
   static WritingGenre? byApiValue(String value) {
     for (final WritingGenre genre in WritingGenre.values) {
@@ -253,6 +345,8 @@ class WritingTask {
     this.reader = '',
     this.hints = const <String>[],
     this.sourceText,
+    this.visual,
+    this.discussion,
   });
 
   /// Stable id (`[a-z0-9-]`), used for drafts and to avoid duplicate XP.
@@ -273,6 +367,19 @@ class WritingTask {
   /// Text to summarise (summary tasks only).
   final String? sourceText;
 
+  /// Graph, table, process or map (IELTS Academic Task 1).
+  final ExamVisual? visual;
+
+  /// Professor's question and students' posts (TOEFL discussion).
+  final DiscussionBoard? discussion;
+
+  /// Material Mia needs to check the text against (source text, the data of
+  /// the visual or the discussion), or null.
+  String? get reviewSource =>
+      sourceText ?? visual?.describe() ?? discussion?.asSourceText();
+
+  Duration? get timeLimit => genre.timeLimit;
+
   String get lengthLabel => maxWords > 0
       ? '$minWords–$maxWords words'
       : minWords > 0
@@ -289,6 +396,14 @@ class WritingTask {
 class WritingCatalog {
   WritingCatalog._();
 
+  /// Every task: the studio's original 43, the extra studio tasks and the
+  /// exam tasks.
+  static const List<WritingTask> tasks = <WritingTask>[
+    ..._studioTasks,
+    ...moreStudioTasks,
+    ...examWritingTasks,
+  ];
+
   static List<WritingTask> tasksFor(WritingGenre genre, {WritingBand? band}) =>
       tasks
           .where(
@@ -304,7 +419,7 @@ class WritingCatalog {
     return null;
   }
 
-  static const List<WritingTask> tasks = <WritingTask>[
+  static const List<WritingTask> _studioTasks = <WritingTask>[
     // ------------------------------------------------------------------ EMAIL
     WritingTask(
       id: 'email-invite-friend',

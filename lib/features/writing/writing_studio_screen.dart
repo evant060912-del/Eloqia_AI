@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../models/learning_profile.dart';
 import '../../services/learning/learning_profile_service.dart';
 import '../../services/mia/mia_chat_client.dart';
+import '../../services/mia/writing_review.dart';
 import '../../theme/app_colors.dart';
+import '../exams/exam_formats.dart';
+import '../exams/exam_space_screen.dart';
 import 'writing_catalog.dart';
 import 'writing_checks.dart';
 import 'writing_review_screen.dart';
@@ -11,8 +14,8 @@ import 'writing_store.dart';
 import 'writing_widgets.dart';
 import 'writing_workspace_screen.dart';
 
-/// Entry point of the Writing Studio: 13 kinds of writing, drafts in
-/// progress and past reviews.
+/// Entry point of the Writing Studio: 13 kinds of writing, TOEFL and IELTS
+/// preparation, drafts in progress and past reviews.
 class WritingStudioScreen extends StatefulWidget {
   const WritingStudioScreen({
     super.key,
@@ -109,6 +112,18 @@ class _WritingStudioScreenState extends State<WritingStudioScreen> {
     if (task != null && mounted) await _openTask(task);
   }
 
+  Future<void> _openExam(ExamKind exam) async {
+    final LearningProfile? profile = _profile;
+    if (profile == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ExamSpaceScreen(exam: exam, profile: profile, client: _client),
+      ),
+    );
+    await _load();
+  }
+
   Future<void> _openHistory(WritingHistoryEntry entry) async {
     final WritingTask? task = WritingCatalog.byId(entry.taskId);
     final WritingReviewAction? action = await Navigator.of(context)
@@ -183,7 +198,10 @@ class _WritingStudioScreenState extends State<WritingStudioScreen> {
                           ),
                       ],
                       for (final WritingGroup group in WritingGroup.values)
-                        ..._groupSection(group),
+                        if (group != WritingGroup.exams)
+                          ..._groupSection(group),
+                      const WritingSectionTitle('Exam preparation'),
+                      _ExamCards(onOpen: _openExam),
                       if (_history.isNotEmpty) ...<Widget>[
                         const WritingSectionTitle('Your reviews'),
                         for (final WritingHistoryEntry e in _history.take(8))
@@ -233,6 +251,99 @@ class _WritingStudioScreenState extends State<WritingStudioScreen> {
         },
       ),
     ];
+  }
+}
+
+class _ExamCards extends StatelessWidget {
+  const _ExamCards({required this.onOpen});
+
+  final ValueChanged<ExamKind> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool twoColumns = constraints.maxWidth >= 680;
+        final double width = twoColumns
+            ? (constraints.maxWidth - 12) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: <Widget>[
+            for (final ExamKind exam in ExamKind.values)
+              SizedBox(
+                width: width,
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => onOpen(exam),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: AppColors.academic.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Container(
+                            width: 46,
+                            height: 46,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.academic.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_outlined,
+                              color: AppColors.academic,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  '${exam.label} Writing',
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  ExamTaskType.of(exam)
+                                      .map((ExamTaskType t) => t.label)
+                                      .join(' · '),
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -424,7 +535,13 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int? score = entry.review?.scorePercent;
+    final int? percent = entry.review?.scorePercent;
+    final ExamEstimate? exam = entry.review?.examEstimate;
+    final String? score = exam != null
+        ? '${exam.exam} ${exam.display}'
+        : percent == null
+        ? null
+        : '$percent%';
     final String status = entry.review == null
         ? 'Automatic checks only'
         : '${entry.review!.corrections.length} corrections';
@@ -459,7 +576,7 @@ class _HistoryTile extends StatelessWidget {
             ),
             if (score != null)
               Text(
-                '$score%',
+                score,
                 style: const TextStyle(
                   color: AppColors.primaryBright,
                   fontSize: 18,
@@ -494,13 +611,17 @@ class _TaskPickerState extends State<_TaskPicker> {
 
   @override
   Widget build(BuildContext context) {
+    // Exam tasks follow the exam's format, not a level band: list them all.
+    final bool exam = widget.genre.isExam;
     final List<WritingTask> mine = WritingCatalog.tasksFor(
       widget.genre,
-      band: widget.band,
+      band: exam ? null : widget.band,
     );
-    final List<WritingTask> others = WritingCatalog.tasksFor(
-      widget.genre,
-    ).where((WritingTask t) => t.band != widget.band).toList();
+    final List<WritingTask> others = exam
+        ? const <WritingTask>[]
+        : WritingCatalog.tasksFor(
+            widget.genre,
+          ).where((WritingTask t) => t.band != widget.band).toList();
     final Set<String> drafted = widget.drafts
         .map((WritingDraft d) => d.taskId)
         .toSet();
@@ -569,7 +690,9 @@ class _TaskPickerState extends State<_TaskPicker> {
                   ],
                 ),
               ),
-            WritingSectionTitle('For ${widget.band.levels}'),
+            WritingSectionTitle(
+              exam ? 'Practice tasks' : 'For ${widget.band.levels}',
+            ),
             if (mine.isEmpty)
               const Text(
                 'No task at this level yet: choose one below.',
