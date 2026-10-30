@@ -46,12 +46,20 @@ python -m app.agent dev
 Start Flutter Web with the API URL:
 
 ```powershell
-flutter run -d chrome --dart-define=ELOQIA_VOICE_API_URL=http://localhost:8000
+flutter run -d chrome --web-port 5000 --dart-define=ELOQIA_API_URL=http://localhost:8000 --dart-define=ELOQIA_VOICE_API_URL=http://localhost:8000
 ```
 
 The Flutter `MiaScreen` route must also receive an implementation of
 `OidcAccessTokenProvider` backed by the product's authenticated sign-in flow.
 Do not put a static or long-lived access token in `--dart-define`.
+
+Mia's text routes (OpenAI key required): `POST /v1/mia/chat`,
+`POST /v1/mia/chat/summary` and `POST /v1/writing/review` (Writing Studio).
+They share one per-learner rate limit.
+
+For local development set `ELOQIA_ENV=development` and
+`ELOQIA_ALLOW_LOCAL_AUTH=true`: requests from `127.0.0.1` are accepted without
+OIDC, and browsers may call the API from any `localhost` port.
 
 `GET /healthz` is a liveness check and does not imply provider readiness.
 Authenticated session creation is exposed at `POST /v1/voice/sessions`.

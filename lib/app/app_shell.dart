@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../features/learning/sessions/conversation_session_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/learning/learning_hub_screen.dart' as learning_hub;
 import '../features/lessons/engine/lesson_engine.dart';
@@ -11,7 +10,9 @@ import '../features/lessons/lesson_launcher.dart';
 import '../features/lessons/models/lesson_models.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/progress/progress_screen.dart';
+import '../features/tutors/mia/mia_chat_screen.dart';
 import '../features/tutors/mia/mia_screen.dart';
+import '../features/writing/writing_studio_screen.dart';
 import '../models/learning_profile.dart';
 import '../services/learning/learning_engine.dart';
 import '../theme/app_colors.dart';
@@ -350,8 +351,18 @@ class _LearningTabState extends State<_LearningTab> {
 
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => ConversationSessionScreen(profile: profile),
+        builder: (_) => WritingStudioScreen(profile: profile),
       ),
+    );
+    if (mounted) await _load();
+  }
+
+  Future<void> _openConversation() async {
+    final LearningProfile? profile = _profile;
+    if (profile == null) return;
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => MiaChatScreen(profile: profile)),
     );
     if (mounted) await _load();
   }
@@ -371,6 +382,10 @@ class _LearningTabState extends State<_LearningTab> {
     }
     if (activity == 'Writing') {
       await _openWritingPractice();
+      return;
+    }
+    if (activity == 'Conversation') {
+      await _openConversation();
       return;
     }
     await Navigator.of(

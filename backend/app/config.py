@@ -236,6 +236,18 @@ class Settings:
     # Validation
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def local_origin_regex() -> str | None:
+        """Any localhost port, only in local development with local auth.
+
+        Same switches as `security._is_local_development_request`.
+        """
+        development = _value("ELOQIA_ENV", "production").lower() == "development"
+        local_auth = _value("ELOQIA_ALLOW_LOCAL_AUTH", "false").lower() == "true"
+        if development and local_auth:
+            return r"http://(localhost|127\.0\.0\.1)(:\d+)?"
+        return None
+
     def missing_oidc_settings(self) -> list[str]:
         required = {
             "OIDC_ISSUER": self.oidc_issuer,

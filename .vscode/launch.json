@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Eloqia server (backend)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.api:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": true
+    },
+    {
+      "name": "Eloqia app (Chrome, Mia connected)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port", "5000",
+        "--dart-define=ELOQIA_API_URL=http://localhost:8000",
+        "--dart-define=ELOQIA_VOICE_API_URL=http://localhost:8000"
+      ]
+    },
+    {
+      "name": "Eloqia app (Windows, Mia connected)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "deviceId": "windows",
+      "args": [
+        "--dart-define=ELOQIA_API_URL=http://localhost:8000",
+        "--dart-define=ELOQIA_VOICE_API_URL=http://localhost:8000"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Eloqia: server + app (Chrome)",
+      "configurations": ["Eloqia server (backend)", "Eloqia app (Chrome, Mia connected)"],
+      "stopAll": true
+    }
+  ]
+}

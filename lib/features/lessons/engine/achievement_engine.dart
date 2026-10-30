@@ -41,7 +41,7 @@ class AchievementEngine {
       'Role Player',
       'Complete three role-plays with Mia.',
     ),
-    Achievement('writer', 'Writer', 'Get feedback from Mia on your writing.'),
+    Achievement('writer', 'Writer', 'Complete a writing task with Mia.'),
   ];
 
   static Set<String> unlocked({

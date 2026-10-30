@@ -32,9 +32,48 @@ The app includes 21 grammar, vocabulary, reading, and listening lessons at
 selected CEFR levels from A1 to C1. Listening passages use device-generated
 speech, not recorded native-speaker audio. Exercises provide deterministic
 answer-specific feedback, retries, per-answer XP, combos, achievements, and
-local progress/memory updates. Mia's writing practice uses authored prompts
-and local word/sentence counts; it does not score language quality or persist
-responses. The optional placement estimate is not a certification.
+local progress/memory updates. The optional placement estimate is not a
+certification.
+
+## Writing Studio
+
+Learn → Writing (or Home → Writing) opens the Writing Studio: 13 kinds of
+writing (email, practical message, free writing, essay, argumentative, opinion,
+for and against, academic style, narrative, descriptive, creative, summary,
+report) with 43 authored tasks across three level bands (A1–A2, B1–B2, C1–C2).
+
+* The editor saves a draft automatically and shows the word count against the
+  task's target. "Check basics" runs certain mechanical rules on the device
+  (capital I, sentence capitals, repeated words, spaces around punctuation).
+* "Submit to Mia" sends the text to `POST /v1/writing/review`. Mia scores the
+  criteria of that genre (weighted on the server), and every correction quotes
+  the learner's exact words, with its category, certainty (error, probable
+  error, awkward, style option, also correct), priority, explanation, rule,
+  example and what to practise next. Quotes that do not appear in the text are
+  discarded. The score is a practice estimate, not an exam result.
+* A task earns XP once a day, from 60% of its minimum length; real mistakes are
+  added to Mia's learning memory. The last 20 reviews stay on the device.
+* Without the server address the studio still works offline (drafts, automatic
+  checks, XP) and says how to connect Mia.
+
+## Run Eloqia with Mia on your computer
+
+1. In `backend/.env` (copy of `.env.example`): `ELOQIA_ENV=development`,
+   `ELOQIA_ALLOW_LOCAL_AUTH=true`, `OPENAI_API_KEY=...`, `CARTESIA_API_KEY=...`.
+2. VS Code: Run and Debug → **Eloqia: server + app (Chrome)** starts both.
+3. Or in two terminals:
+
+   ```powershell
+   cd backend
+   uvicorn app.api:app --reload --host 127.0.0.1 --port 8000
+   ```
+
+   ```powershell
+   flutter run -d chrome --web-port 5000 --dart-define=ELOQIA_API_URL=http://localhost:8000 --dart-define=ELOQIA_VOICE_API_URL=http://localhost:8000
+   ```
+
+Without `--dart-define`, Mia's chat and reviews show "not configured". In
+local development the server accepts any `localhost` port.
 
 time voice remains **CONFIGURATION REQUIRED** until OIDC, LiveKit, OpenAI, and
 Learning recommendations are deterministic rules over the learner's profile,
@@ -294,8 +333,8 @@ Future features:
 * Natural conversations with AI teachers
 * Context-aware responses
 Live AI voice conversations and remote speech recognition require secure
-backend, identity, and vendor configuration. Local Mia TTS and guided writing
-are available now.
+backend, identity, and vendor configuration. Local Mia TTS and the Writing
+Studio's offline mode are available without them.
 * Vocabulary recommendations
 ## 📈 Learning Progress System
 
