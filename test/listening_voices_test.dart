@@ -103,7 +103,17 @@ void main() {
         casting.voiceFor('Tom', ListeningAccent.british)!.name,
         'UK Female',
       );
-      expect(casting.voiceFor('Jo', ListeningAccent.australian), isNull);
+      // No Australian voice: another English voice nobody uses yet.
+      expect(
+        casting.voiceFor('Jo', ListeningAccent.australian)!.name,
+        'US English',
+      );
+      expect(
+        VoiceCasting(
+          const <DeviceVoice>[],
+        ).voiceFor('Jo', ListeningAccent.british),
+        isNull,
+      );
       expect(normaliseLocale('en_au'), 'en-AU');
       expect(DeviceVoice.parse('nope'), isEmpty);
     });
@@ -127,9 +137,13 @@ void main() {
         expect(tts.log, <String>[
           'voice UK Female',
           'say Hello!',
-          'language en-AU',
+          'voice UK Male',
           'say No worries.',
         ]);
+        expect(DeviceVoice.parse(_voices)[1].toMap(), <String, String>{
+          'name': 'UK Male',
+          'locale': 'en_GB',
+        });
       },
     );
   });

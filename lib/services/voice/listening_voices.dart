@@ -100,14 +100,37 @@ class DeviceListeningVoice implements ListeningVoice {
 
   FlutterTts get _engine => _tts ??= _injected ?? FlutterTts();
 
-  Future<VoiceCasting> _load() => _casting ??= () async {
-    try {
-      await _engine.awaitSpeakCompletion(true);
-      return VoiceCasting(DeviceVoice.parse(await _engine.getVoices));
-    } on Object {
+  /// Browsers (Chrome) often list no voice until a moment after the page
+  /// loads: retry a few times, and never cache an empty list.
+  Future<VoiceCasting> _load() {
+    final Future<VoiceCasting> loading = _casting ??= () async {
+      try {
+        await _engine.awaitSpeakCompletion(true);
+        for (int attempt = 0; attempt < 6; attempt++) {
+          final List<DeviceVoice> voices = DeviceVoice.parse(
+            await _engine.getVoices,
+          );
+          if (voices.any((DeviceVoice v) => v.isEnglish)) {
+            return VoiceCasting(voices);
+          }
+          await Future<void>.delayed(retryDelay);
+        }
+      } on Object catch (error) {
+        debugPrint('Listening voices unavailable: $error');
+      }
       return VoiceCasting(const <DeviceVoice>[]);
-    }
-  }();
+    }();
+    return loading.then((VoiceCasting casting) {
+      if (!casting.hasEnglish && identical(_casting, loading)) {
+        _casting = null;
+      }
+      return casting;
+    });
+  }
+
+  /// Wait between two voice-list attempts (shorter in tests).
+  @visibleForTesting
+  static Duration retryDelay = const Duration(milliseconds: 300);
 
   @override
   Future<bool> isAvailable() async => (await _load()).hasEnglish;
