@@ -10,6 +10,8 @@ import '../engine/lesson_coach.dart';
 import '../engine/lesson_result_service.dart';
 import '../engine/lesson_session.dart';
 import '../models/lesson_models.dart';
+import '../review/review_deck.dart';
+import '../review/review_service.dart';
 import 'exercise_widgets.dart';
 import 'feedback_panel.dart';
 import 'listening_player.dart';
@@ -52,6 +54,7 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
   int _inputKey = 0;
   LessonSummary? _summary;
   LessonRecord? _record;
+  ReviewChange? _reviewChange;
   bool _saving = false;
   bool _loadingNext = false;
 
@@ -126,9 +129,16 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
       summary: summary,
       profile: widget.profile,
     );
+    ReviewChange? change;
+    try {
+      change = await ReviewService.recordLesson(_session.firstTryResults);
+    } on Object {
+      change = null; // The lesson result is saved even if the deck is not.
+    }
     if (mounted) {
       setState(() {
         _record = record;
+        _reviewChange = change;
         _saving = false;
       });
     }
@@ -853,6 +863,14 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
             'Mia will bring back: ${summary.missedTopics.keys.join(', ')}.',
           ),
         ],
+        if (_reviewChange != null && !_reviewChange!.isEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          _infoCard(
+            'SPACED REVIEW',
+            AppColors.vocabulary,
+            reviewChangeText(_reviewChange!),
+          ),
+        ],
         for (final a in record?.newAchievements ?? const []) ...<Widget>[
           const SizedBox(height: 12),
           _infoCard(
@@ -1001,4 +1019,18 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
       ),
     );
   }
+}
+
+/// One sentence about what a lesson changed in the review deck.
+String reviewChangeText(ReviewChange change) {
+  final List<String> parts = <String>[
+    if (change.added > 0)
+      '${change.added} new ${change.added == 1 ? 'exercise' : 'exercises'} '
+          'to review from tomorrow',
+    if (change.promoted > 0) '${change.promoted} moved further away',
+    if (change.mastered > 0) '${change.mastered} mastered',
+    if (change.reset > 0) '${change.reset} back for tomorrow',
+  ];
+  final String text = parts.join(', ');
+  return '${text[0].toUpperCase()}${text.substring(1)}.';
 }

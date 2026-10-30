@@ -12,6 +12,10 @@ import '../onboarding/assessment/level_assessment_result.dart';
 import '../onboarding/assessment/level_assessment_service.dart';
 import 'engine/lesson_engine.dart';
 import 'models/lesson_models.dart';
+import 'review/review_deck.dart';
+import 'review/review_service.dart';
+import 'review/review_session.dart';
+import 'ui/lesson_library_screen.dart';
 import 'ui/lesson_runner_screen.dart';
 
 /// Everything the lesson engine needs, loaded from the existing services.
@@ -73,6 +77,36 @@ class LessonLauncher {
     await navigator.push<void>(_route(data.select(skill), data));
   }
 
+  /// All lessons of [skill], by level, with the recommended one first.
+  static Future<void> openLibrary(BuildContext context, LessonSkill skill) =>
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => LessonLibraryScreen(skill: skill),
+        ),
+      );
+
+  /// Today's spaced review. Returns false when nothing is due.
+  static Future<bool> openReview(BuildContext context) async {
+    final NavigatorState navigator = Navigator.of(context);
+    final ReviewDeck deck = await ReviewService.load();
+    final Lesson? lesson = ReviewSessions.build(deck, DateTime.now());
+    if (lesson == null) return false;
+    final LessonContext data = await LessonContext.load();
+    final int count = lesson.allExercises.length;
+    await navigator.push<void>(
+      _route(
+        LessonChoice(
+          lesson: lesson,
+          reason:
+              '$count ${count == 1 ? 'exercise is' : 'exercises are'} due for '
+              'review today.',
+        ),
+        data,
+      ),
+    );
+    return true;
+  }
+
   static Future<void> openRecommended(BuildContext context) async {
     final NavigatorState navigator = Navigator.of(context);
     final LessonContext data = await LessonContext.load();
@@ -85,7 +119,10 @@ class LessonLauncher {
     LessonContext data,
   ) => Navigator.of(context).push<void>(_route(choice, data));
 
-  static MaterialPageRoute<void> _route(LessonChoice choice, LessonContext data) {
+  static MaterialPageRoute<void> _route(
+    LessonChoice choice,
+    LessonContext data,
+  ) {
     return MaterialPageRoute<void>(
       builder: (BuildContext context) => _screen(choice, data),
     );

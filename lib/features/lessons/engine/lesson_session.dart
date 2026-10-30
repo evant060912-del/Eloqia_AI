@@ -106,6 +106,10 @@ class LessonSession {
   int _reviewStart = 1 << 30;
   bool get answeredCurrent => _answeredCurrent;
 
+  /// First-try result of every exercise answered so far (spaced review).
+  Map<String, bool> get firstTryResults =>
+      Map<String, bool>.unmodifiable(_firstTry);
+
   double get practiceAccuracy {
     final Iterable<MapEntry<String, bool>> practice = _firstTry.entries.where(
       (MapEntry<String, bool> e) => !_challengeIds.contains(e.key),
@@ -219,7 +223,9 @@ class LessonSession {
   void _extend() {
     if (!_challengeAdded) {
       _challengeAdded = true;
-      final List<Exercise> challenge = lesson.exercisesOf(ActivityKind.challenge);
+      final List<Exercise> challenge = lesson.exercisesOf(
+        ActivityKind.challenge,
+      );
       if (challenge.isNotEmpty && practiceAccuracy >= challengeAccuracy) {
         _challengeIds.addAll(challenge.map((Exercise e) => e.id));
         _queue.addAll(challenge);

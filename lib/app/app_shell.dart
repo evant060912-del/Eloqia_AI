@@ -8,6 +8,9 @@ import '../features/lessons/engine/lesson_engine.dart';
 import '../features/lessons/engine/lesson_result_service.dart';
 import '../features/lessons/lesson_launcher.dart';
 import '../features/lessons/models/lesson_models.dart';
+import '../features/lessons/review/review_deck.dart';
+import '../features/lessons/review/review_service.dart';
+import '../features/lessons/review/review_session.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/progress/progress_screen.dart';
 import '../features/tutors/mia/mia_chat_screen.dart';
@@ -302,6 +305,8 @@ class _LearningTabState extends State<_LearningTab> {
   LearningRecommendation? _recommendation;
   int _completedSessions = 0;
   int _learningMinutes = 0;
+  int _reviewDue = 0;
+  int _reviewTotal = 0;
   bool _loading = true;
   Object? _error;
 
@@ -315,9 +320,13 @@ class _LearningTabState extends State<_LearningTab> {
     try {
       final LessonContext data = await LessonContext.load();
       final LessonChoice choice = data.recommend();
+      final ReviewDeck deck = await ReviewService.load();
+      final int due = ReviewSessions.dueExercises(deck, DateTime.now()).length;
 
       if (!mounted) return;
       setState(() {
+        _reviewDue = due;
+        _reviewTotal = deck.length;
         _profile = data.profile;
         _recommendation = LearningRecommendation(
           activity: LessonResultService.activityFor(choice.lesson.skill),
@@ -343,6 +352,17 @@ class _LearningTabState extends State<_LearningTab> {
   Future<void> _openRecommended() async {
     await LessonLauncher.openRecommended(context);
     if (mounted) await _load();
+  }
+
+  Future<void> _openReview() async {
+    final bool opened = await LessonLauncher.openReview(context);
+    if (!mounted) return;
+    if (!opened) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nothing to review right now.')),
+      );
+    }
+    await _load();
   }
 
   Future<void> _openWritingPractice() async {
@@ -376,7 +396,7 @@ class _LearningTabState extends State<_LearningTab> {
       _ => null,
     };
     if (skill != null) {
-      await LessonLauncher.openSkill(context, skill);
+      await LessonLauncher.openLibrary(context, skill);
       if (mounted) await _load();
       return;
     }
@@ -420,6 +440,9 @@ class _LearningTabState extends State<_LearningTab> {
       learningMinutes: _learningMinutes,
       onStartRecommended: _openRecommended,
       onActivitySelected: _openActivity,
+      reviewDue: _reviewDue,
+      reviewTotal: _reviewTotal,
+      onReview: _openReview,
     );
   }
 }

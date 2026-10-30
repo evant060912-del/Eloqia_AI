@@ -35,6 +35,15 @@ answer-specific feedback, retries, per-answer XP, combos, achievements, and
 local progress/memory updates. The optional placement estimate is not a
 certification.
 
+## Lessons and spaced review
+
+Learn → Grammar, Vocabulary, Reading or Listening opens a library of 36
+lessons (A1 to C1), with the recommended lesson and its reason first. Grammar
+and vocabulary exercises missed at the first try enter a spaced review deck:
+they come back the next day, then after 3, 7, 14 and 30 days, and leave the
+deck once mastered. The "Spaced review" card in Learn starts today's review
+(10 exercises at most), which runs like a normal lesson (feedback, XP).
+
 ## Writing Studio
 
 Learn → Writing (or Home → Writing) opens the Writing Studio: 13 kinds of
