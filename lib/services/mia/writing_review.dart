@@ -18,6 +18,7 @@ class WritingReview {
     this.nextActivity,
     this.wordCount = 0,
     this.estimateNote = '',
+    this.examEstimate,
     this.safetyRedirect = false,
   });
 
@@ -47,6 +48,7 @@ class WritingReview {
           ? (json['word_count'] as num).toInt()
           : 0,
       estimateNote: _string(json['estimate_note']),
+      examEstimate: ExamEstimate.tryParse(json['exam_estimate']),
       safetyRedirect: json['safety_redirect'] == true,
     );
   }
@@ -64,6 +66,9 @@ class WritingReview {
   final WritingNextActivity? nextActivity;
   final int wordCount;
   final String estimateNote;
+
+  /// IELTS band or TOEFL task score, for exam tasks only (unofficial).
+  final ExamEstimate? examEstimate;
   final bool safetyRedirect;
 
   /// Same keys as the server, so a saved review can be parsed again.
@@ -81,6 +86,7 @@ class WritingReview {
     'next_activity': nextActivity?.toJson(),
     'word_count': wordCount,
     'estimate_note': estimateNote,
+    'exam_estimate': examEstimate?.toJson(),
     'safety_redirect': safetyRedirect,
   };
 }
@@ -91,17 +97,22 @@ class WritingCriterion {
     required this.criterion,
     required this.label,
     required this.score,
+    this.maxScore = 5,
     this.weight = 1,
     this.comment = '',
   });
 
   factory WritingCriterion.fromJson(Map<String, dynamic> json) {
     final String criterion = _string(json['criterion']);
+    final int maxScore = json['max_score'] is num
+        ? (json['max_score'] as num).toInt().clamp(1, 9)
+        : 5;
     return WritingCriterion(
       criterion: criterion,
       label: _string(json['label'], fallback: criterion.replaceAll('_', ' ')),
+      maxScore: maxScore,
       score: json['score'] is num
-          ? (json['score'] as num).toInt().clamp(0, 5)
+          ? (json['score'] as num).toInt().clamp(0, maxScore)
           : 0,
       weight: json['weight'] is num
           ? (json['weight'] as num).toInt().clamp(1, 3)
@@ -113,8 +124,9 @@ class WritingCriterion {
   final String criterion;
   final String label;
 
-  /// 0 to 5.
+  /// 0 to [maxScore] (5 for Eloqia and TOEFL criteria, 9 for IELTS bands).
   final int score;
+  final int maxScore;
   final int weight;
   final String comment;
 
@@ -122,6 +134,7 @@ class WritingCriterion {
     'criterion': criterion,
     'label': label,
     'score': score,
+    'max_score': maxScore,
     'weight': weight,
     'comment': comment,
   };
@@ -266,4 +279,50 @@ List<T> _list<T>(Object? raw, T Function(Map<String, dynamic>) parse) {
       .whereType<Map>()
       .map((Map item) => parse(Map<String, dynamic>.from(item)))
       .toList(growable: false);
+}
+
+/// Unofficial estimate in an exam's own scale (IELTS band, TOEFL task score).
+@immutable
+class ExamEstimate {
+  const ExamEstimate({
+    required this.exam,
+    required this.label,
+    required this.value,
+    required this.scaleMax,
+    required this.note,
+  });
+
+  static ExamEstimate? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final Object? value = raw['value'];
+    final Object? scale = raw['scale_max'];
+    final String exam = _string(raw['exam']);
+    if (value is! num || scale is! num || exam.isEmpty) return null;
+    return ExamEstimate(
+      exam: exam,
+      label: _string(raw['label'], fallback: 'Estimated score'),
+      value: value.toDouble().clamp(0, scale.toDouble()),
+      scaleMax: scale.toInt(),
+      note: _string(raw['note']),
+    );
+  }
+
+  final String exam;
+  final String label;
+  final double value;
+  final int scaleMax;
+  final String note;
+
+  /// "6.5" or "7".
+  String get display => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'exam': exam,
+    'label': label,
+    'value': value,
+    'scale_max': scaleMax,
+    'note': note,
+  };
 }

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 from typing import Any, Literal
 
@@ -65,6 +66,12 @@ Genre = Literal[
     "practical_message",
     "academic",
     "free",
+    # Exam preparation (original prompts in the public task formats).
+    "toefl_email",
+    "toefl_discussion",
+    "ielts_task1_academic",
+    "ielts_task1_general",
+    "ielts_task2",
 ]
 
 Category = Literal[
@@ -111,6 +118,24 @@ CRITERIA: dict[str, str] = {
     "clarity": "the reader understands the message at once",
     "argument": "clear position, developed and balanced reasoning",
     "evidence": "reasons supported by examples or facts",
+    # IELTS Writing public band descriptors (paraphrased criterion names).
+    "task_achievement": (
+        "covers the requirements: clear overview, key features selected and "
+        "compared accurately (Task 1)"
+    ),
+    "task_response": (
+        "addresses all parts of the question with a clear, developed position "
+        "(Task 2)"
+    ),
+    "coherence_cohesion": "logical organisation, paragraphing and linking",
+    "lexical_resource": "range, precision and accuracy of vocabulary",
+    "grammatical_range_accuracy": "range and accuracy of grammar and punctuation",
+    # TOEFL iBT (2026 format) writing tasks, analytic view of a holistic score.
+    "task_completion": "every point of the scenario is addressed",
+    "tone_conventions": "tone and email conventions suit the reader",
+    "contribution": "a clear, relevant opinion that adds to the discussion",
+    "engagement": "builds on or responds to the other students' posts",
+    "language_use": "range and accuracy of grammar and vocabulary",
 }
 
 # Weights per genre: only what matters for that kind of writing.
@@ -170,7 +195,45 @@ GENRE_CRITERIA: dict[str, dict[str, int]] = {
         "grammar": 2, "vocabulary_range": 2, "naturalness": 2,
         "coherence": 2, "spelling": 1, "punctuation": 1,
     },
+    # IELTS: the four public criteria weigh equally.
+    "ielts_task1_academic": {
+        "task_achievement": 1, "coherence_cohesion": 1,
+        "lexical_resource": 1, "grammatical_range_accuracy": 1,
+    },
+    "ielts_task1_general": {
+        "task_achievement": 1, "coherence_cohesion": 1,
+        "lexical_resource": 1, "grammatical_range_accuracy": 1,
+    },
+    "ielts_task2": {
+        "task_response": 1, "coherence_cohesion": 1,
+        "lexical_resource": 1, "grammatical_range_accuracy": 1,
+    },
+    "toefl_email": {
+        "task_completion": 1, "tone_conventions": 1, "language_use": 1,
+    },
+    "toefl_discussion": {
+        "contribution": 1, "engagement": 1, "language_use": 1,
+    },
 }
+
+# Scale of each criterion score: IELTS bands 0-9, TOEFL task rubric 0-5,
+# Eloqia criteria 0-5.
+EXAM_OF_GENRE: dict[str, str] = {
+    "ielts_task1_academic": "IELTS",
+    "ielts_task1_general": "IELTS",
+    "ielts_task2": "IELTS",
+    "toefl_email": "TOEFL",
+    "toefl_discussion": "TOEFL",
+}
+SCALE_MAX: dict[str, int] = {"IELTS": 9, "TOEFL": 5}
+
+# Genres whose task comes with material the review must compare against.
+NEEDS_SOURCE = {"summary", "ielts_task1_academic", "toefl_discussion"}
+
+
+def scale_max(genre: str) -> int:
+    exam = EXAM_OF_GENRE.get(genre)
+    return SCALE_MAX[exam] if exam else 5
 
 GENRE_GUIDANCE: dict[str, str] = {
     "email": (
@@ -242,7 +305,47 @@ GENRE_GUIDANCE: dict[str, str] = {
         "GENRE: free writing. There is no imposed task: focus on accuracy, "
         "naturalness and vocabulary, and encourage the learner's voice."
     ),
+    "ielts_task1_academic": (
+        "EXAM: IELTS Academic Writing Task 1 (20 minutes, at least 150 words). "
+        "The SOURCE TEXT describes the visual the learner saw. Check a clear "
+        "overview of the main trends or stages, key features selected and "
+        "compared, data reported accurately against the SOURCE TEXT, no "
+        "personal opinion and no speculation about causes."
+    ),
+    "ielts_task1_general": (
+        "EXAM: IELTS General Training Writing Task 1, a letter (20 minutes, "
+        "at least 150 words). Check that the purpose is clear, that every "
+        "bullet point of the task is covered and developed, and that the tone "
+        "(formal, semi-formal or informal) suits the recipient."
+    ),
+    "ielts_task2": (
+        "EXAM: IELTS Writing Task 2, an essay (40 minutes, at least 250 "
+        "words). Check that every part of the question is answered, that the "
+        "position is clear throughout, that ideas are extended and supported, "
+        "and paragraphing. Texts under 250 words limit Task Response."
+    ),
+    "toefl_email": (
+        "EXAM: TOEFL iBT Write an Email (2026 format, 7 minutes). Check that "
+        "every point listed in the scenario is addressed, that the tone and "
+        "email conventions suit the recipient, and the range and accuracy of "
+        "the language. An email should sound like an email, not an essay."
+    ),
+    "toefl_discussion": (
+        "EXAM: TOEFL iBT Write for an Academic Discussion (2026 format, 10 "
+        "minutes, about 100 words or more). The SOURCE TEXT holds the "
+        "professor's question and two students' posts. Check a clear opinion "
+        "that contributes something new, explicit engagement with the other "
+        "posts, and the range and accuracy of the language."
+    ),
 }
+
+EXAM_SCORING = (
+    "SCORING: score each criterion against the exam's public descriptors, "
+    "not against the learner's CEFR level, using whole numbers from 0 to "
+    "{max}. Explanations stay simple enough for the learner's level. This is "
+    "practice for an unofficial estimate: never claim to be an official "
+    "examiner or affiliated with the test provider."
+)
 
 LEVEL_EXPECTATIONS: dict[str, str] = {
     "A1": (
@@ -365,8 +468,8 @@ class WritingEvaluationRequest(BaseModel):
             raise ValueError("text has no words")
         if self.max_words and self.max_words < self.min_words:
             raise ValueError("max_words is lower than min_words")
-        if self.genre == "summary" and not self.source_text:
-            raise ValueError("summary tasks need the source text")
+        if self.genre in NEEDS_SOURCE and not self.source_text:
+            raise ValueError("this task needs its source material")
         return self
 
 
@@ -375,7 +478,8 @@ class CriterionScore(BaseModel):
 
     criterion: str
     label: str
-    score: int = Field(ge=0, le=5)
+    score: int = Field(ge=0, le=9)
+    max_score: int = Field(default=5, ge=1, le=9)
     weight: int = Field(ge=1, le=3)
     comment: str = Field(default="", max_length=300)
 
@@ -401,6 +505,18 @@ class NextActivity(BaseModel):
     focus: str = Field(default="", max_length=120)
 
 
+class ExamEstimate(BaseModel):
+    """Unofficial estimate in the exam's own scale."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    exam: Literal["IELTS", "TOEFL"]
+    label: str
+    value: float
+    scale_max: int
+    note: str
+
+
 class WritingEvaluationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -418,6 +534,7 @@ class WritingEvaluationResponse(BaseModel):
     next_activity: NextActivity | None = None
     word_count: int = 0
     estimate_note: str = ESTIMATE_NOTE
+    exam_estimate: ExamEstimate | None = None
     safety_redirect: bool = False
 
 
@@ -455,7 +572,11 @@ def build_review_instructions(request: WritingEvaluationRequest) -> str:
         "Writing Studio. Teach: explain each important change instead of "
         "silently rewriting.",
         GENRE_GUIDANCE[request.genre],
-        LEVEL_EXPECTATIONS[level],
+        (
+            EXAM_SCORING.format(max=scale_max(request.genre))
+            if request.genre in EXAM_OF_GENRE
+            else LEVEL_EXPECTATIONS[level]
+        ),
         f"{style_text} Return at most {limit} corrections, most important "
         "first.",
         f"CRITERIA to score: {criteria_lines}.",
@@ -620,8 +741,53 @@ def weighted_score(criteria: list[CriterionScore]) -> int | None:
     total_weight = sum(c.weight for c in criteria)
     if total_weight == 0:
         return None
-    value = sum(c.score * c.weight for c in criteria) / (total_weight * 5)
+    value = sum(c.score / c.max_score * c.weight for c in criteria) / total_weight
     return round(value * 100)
+
+
+CRITERION_LABELS: dict[str, str] = {
+    "task_achievement": "Task Achievement",
+    "task_response": "Task Response",
+    "coherence_cohesion": "Coherence and Cohesion",
+    "lexical_resource": "Lexical Resource",
+    "grammatical_range_accuracy": "Grammatical Range and Accuracy",
+    "task_completion": "Task completion",
+    "tone_conventions": "Tone and conventions",
+    "contribution": "Contribution",
+    "engagement": "Engagement with others",
+    "language_use": "Language use",
+}
+
+
+def round_half_band(value: float) -> float:
+    """Nearest half band, halves rounded up (6.25 -> 6.5, 6.75 -> 7.0)."""
+    return math.floor(value * 2 + 0.5) / 2
+
+
+def exam_estimate(
+    genre: str,
+    criteria: list[CriterionScore],
+) -> ExamEstimate | None:
+    exam = EXAM_OF_GENRE.get(genre)
+    if exam is None or not criteria:
+        return None
+    mean = sum(c.score for c in criteria) / len(criteria)
+    top = SCALE_MAX[exam]
+    if exam == "IELTS":
+        label = "Estimated band for this task"
+    else:
+        label = "Estimated task score"
+    return ExamEstimate(
+        exam=exam,
+        label=label,
+        value=round_half_band(mean),
+        scale_max=top,
+        note=(
+            f"Unofficial practice estimate (0-{top}) based on the public "
+            f"{exam} descriptors. Eloqia is not affiliated with the test "
+            "provider."
+        ),
+    )
 
 
 def _texts(items: Any, limit: int, size: int) -> list[str]:
@@ -643,6 +809,7 @@ def parse_review_output(
         raise MiaChatError("review is not an object")
 
     weights = GENRE_CRITERIA[request.genre]
+    top = scale_max(request.genre)
     criteria: list[CriterionScore] = []
     seen: set[str] = set()
     for item in data.get("criteria") or []:
@@ -656,8 +823,11 @@ def parse_review_output(
         criteria.append(
             CriterionScore(
                 criterion=name,
-                label=name.replace("_", " ").capitalize(),
-                score=max(0, min(5, score)),
+                label=CRITERION_LABELS.get(
+                    name, name.replace("_", " ").capitalize()
+                ),
+                score=max(0, min(top, score)),
+                max_score=top,
                 weight=weights[name],
                 comment=str(item.get("comment", "")).strip()[:300],
             )
@@ -719,6 +889,9 @@ def parse_review_output(
             ],
             next_activity=next_activity,
             word_count=count_words(request.text),
+            exam_estimate=exam_estimate(request.genre, criteria)
+            if enough
+            else None,
         )
     except ValidationError as error:
         raise MiaChatError("review does not match the schema") from error

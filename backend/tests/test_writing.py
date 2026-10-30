@@ -11,6 +11,7 @@ from app.api import app
 from app.chat import MiaChatError, rate_limiter
 from app.config import Settings
 from app.writing import (
+    EXAM_OF_GENRE,
     GENRE_CRITERIA,
     CriterionScore,
     WritingEvaluationRequest,
@@ -20,6 +21,7 @@ from app.writing import (
     count_words,
     parse_review_output,
     review_writing,
+    round_half_band,
     weighted_score,
 )
 from tests.test_api import _clear_oidc, _speech_settings
@@ -182,10 +184,89 @@ def test_instructions_follow_genre_level_and_correction_style() -> None:
 
 
 def test_every_genre_has_criteria_and_guidance() -> None:
-    assert len(GENRE_CRITERIA) == 13
+    exams = set(EXAM_OF_GENRE)
+    assert len(set(GENRE_CRITERIA) - exams) == 13
+    assert len(exams) == 5
     for genre in GENRE_CRITERIA:
         request = _request(genre=genre, source_text="Source.")
-        assert "GENRE:" in build_review_instructions(request)
+        text = build_review_instructions(request)
+        assert ("EXAM:" if genre in exams else "GENRE:") in text
+
+
+# ---------------------------------------------------------------------------
+# Exam preparation
+# ---------------------------------------------------------------------------
+
+
+def _ielts_review(scores: list[int]) -> dict:
+    names = list(GENRE_CRITERIA["ielts_task2"])
+    return _review(
+        criteria=[
+            {"criterion": n, "score": s, "comment": "ok"}
+            for n, s in zip(names, scores)
+        ],
+        corrections=[],
+    )
+
+
+def test_exam_tasks_score_on_their_own_scale() -> None:
+    request = _request(genre="ielts_task2", min_words=250, max_words=0)
+    text = build_review_instructions(request)
+    assert "0 to 9" in text
+    assert "LEVEL A2" not in text
+    result = parse_review_output(json.dumps(_ielts_review([7, 6, 6, 7])), request)
+    assert [c.max_score for c in result.criteria] == [9, 9, 9, 9]
+    assert result.criteria[0].label == "Task Response"
+    estimate = result.exam_estimate
+    assert estimate is not None
+    assert (estimate.exam, estimate.value, estimate.scale_max) == ("IELTS", 6.5, 9)
+    assert "Unofficial" in estimate.note
+
+
+def test_ielts_half_band_rounding() -> None:
+    assert round_half_band(6.25) == 6.5
+    assert round_half_band(6.75) == 7.0
+    assert round_half_band(6.125) == 6.0
+    assert round_half_band(5.5) == 5.5
+
+
+def test_ielts_scores_are_capped_at_nine() -> None:
+    request = _request(genre="ielts_task2")
+    result = parse_review_output(json.dumps(_ielts_review([12, 9, 9, 9])), request)
+    assert result.criteria[0].score == 9
+    assert result.score_percent == 100
+
+
+def test_toefl_tasks_use_the_five_point_rubric() -> None:
+    request = _request(
+        genre="toefl_discussion",
+        source_text="Professor: ... Ana: ... Leo: ...",
+    )
+    review = _review(
+        criteria=[
+            {"criterion": "contribution", "score": 4, "comment": ""},
+            {"criterion": "engagement", "score": 3, "comment": ""},
+            {"criterion": "language_use", "score": 4, "comment": ""},
+        ],
+        corrections=[],
+    )
+    result = parse_review_output(json.dumps(review), request)
+    assert result.exam_estimate is not None
+    assert result.exam_estimate.exam == "TOEFL"
+    assert result.exam_estimate.value == 3.5
+    assert result.exam_estimate.scale_max == 5
+
+
+def test_regular_genres_have_no_exam_estimate() -> None:
+    result = parse_review_output(json.dumps(_review()), _request())
+    assert result.exam_estimate is None
+
+
+def test_task_material_is_required_where_the_review_needs_it() -> None:
+    for genre in ("ielts_task1_academic", "toefl_discussion"):
+        with pytest.raises(ValidationError):
+            _request(genre=genre, source_text=None)
+    assert _request(genre="ielts_task1_general").source_text is None
 
 
 def test_message_carries_task_length_and_source() -> None:
@@ -253,7 +334,11 @@ def test_weighted_score_handles_empty_lists() -> None:
     assert weighted_score([]) is None
     assert (
         weighted_score(
-            [CriterionScore(criterion="grammar", label="G", score=5, weight=2)]
+            [
+                CriterionScore(
+                    criterion="grammar", label="G", score=5, weight=2
+                )
+            ]
         )
         == 100
     )
