@@ -143,6 +143,57 @@ enum ExamTaskType {
       'Marked 0–9 on Task Response, Coherence and Cohesion, Lexical '
           'Resource, Grammatical Range and Accuracy.',
     ],
+  ),
+
+  // --------------------------------------------------------------- speaking
+  toeflListenRepeat(
+    'toefl_listen_repeat',
+    ExamKind.toefl,
+    'Listen and Repeat',
+    'Repeat sentences exactly as you hear them.',
+    Duration(minutes: 2),
+    0,
+    7,
+    <String>[
+      'Speaking section, about 8 minutes in total, no preparation time.',
+      '7 sentences, from short to long; about 8 to 12 seconds to repeat '
+          'each one.',
+      'Repeat every word in order. Eloqia compares what the recogniser '
+          'heard with the sentence; it does not score pronunciation.',
+    ],
+  ),
+  toeflInterview(
+    'toefl_interview',
+    ExamKind.toefl,
+    'Take an Interview',
+    'Answer four interview questions on one topic.',
+    Duration(minutes: 3),
+    0,
+    5,
+    <String>[
+      '4 questions on one topic, about 45 seconds for each answer.',
+      'Answer directly, then add a reason or an example.',
+      'Mia reviews the transcript (0–5): content, coherence, language. '
+          'Pronunciation is not assessed.',
+    ],
+  ),
+  ieltsSpeaking(
+    'ielts_speaking',
+    ExamKind.ielts,
+    'Speaking',
+    'Part 1 questions, a Part 2 long turn, Part 3 discussion.',
+    Duration(minutes: 14),
+    0,
+    9,
+    <String>[
+      'About 11 to 14 minutes with an examiner, in three parts.',
+      'Part 1: short questions on familiar topics (4–5 minutes).',
+      'Part 2: a cue card, 1 minute to prepare, up to 2 minutes to speak.',
+      'Part 3: a discussion of wider questions (4–5 minutes).',
+      'Marked 0–9 on Fluency and Coherence, Lexical Resource, Grammatical '
+          'Range and Accuracy, and Pronunciation. Mia reviews the transcript '
+          'on the first three; pronunciation is not assessed here.',
+    ],
   );
 
   const ExamTaskType(
@@ -171,7 +222,12 @@ enum ExamTaskType {
   final int scaleMax;
   final List<String> format;
 
-  bool get isWriting => this != toeflBuildSentence;
+  bool get isSpeaking =>
+      this == toeflListenRepeat ||
+      this == toeflInterview ||
+      this == ieltsSpeaking;
+
+  bool get isWriting => !isSpeaking && this != toeflBuildSentence;
 
   String get timeLabel => formatClock(timeLimit, withUnits: true);
 
@@ -324,6 +380,47 @@ const Map<String, CriterionAdvice> examCriterionAdvice =
           'Save 30 seconds to re-read for agreement and tense.',
         ],
         practice: ExamTaskType.toeflBuildSentence,
+      ),
+      'sentence_repetition': CriterionAdvice(
+        label: 'Listen and Repeat',
+        meaning: 'Repeating sentences word for word.',
+        tips: <String>[
+          'Shadow short audio: repeat right after the speaker, every day.',
+          'Listen for chunks ("at least one day ahead"), not single words.',
+          'Keep the small words: articles and prepositions count.',
+        ],
+        practice: ExamTaskType.toeflListenRepeat,
+      ),
+      'fluency_coherence': CriterionAdvice(
+        label: 'Fluency and Coherence',
+        meaning: 'Speaking at length with linked ideas.',
+        tips: <String>[
+          'Answer, then extend: "because…", "for example…", "so…".',
+          'Replace silent pauses with short fillers like "Well, let me '
+              'think".',
+          'For Part 2, use the card’s points as your plan.',
+        ],
+        practice: ExamTaskType.ieltsSpeaking,
+      ),
+      'relevance_development': CriterionAdvice(
+        label: 'Relevance and development',
+        meaning: 'Answering the question and developing it.',
+        tips: <String>[
+          'Start with a one-sentence direct answer.',
+          'Add one reason and one concrete example.',
+          'Finish with a short conclusion if time remains.',
+        ],
+        practice: ExamTaskType.toeflInterview,
+      ),
+      'coherence': CriterionAdvice(
+        label: 'Coherence',
+        meaning: 'Ideas that follow logically.',
+        tips: <String>[
+          'Use signposts: "First…", "Another reason is…", "Overall…".',
+          'Keep one idea per sentence when speaking.',
+          'Link back to the question at the end.',
+        ],
+        practice: ExamTaskType.toeflInterview,
       ),
       'sentence_building': CriterionAdvice(
         label: 'Sentence building',
