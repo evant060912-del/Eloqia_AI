@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../features/learning/sessions/conversation_session_screen.dart';
 import '../../features/lessons/engine/lesson_engine.dart';
 import '../../features/lessons/lesson_launcher.dart';
 import '../../features/lessons/models/lesson_models.dart';
@@ -11,8 +10,10 @@ import '../../services/learning/learning_profile_service.dart';
 import '../../services/progress_service.dart';
 import '../../services/voice/voice_output_provider.dart';
 import '../../theme/app_colors.dart';
+import '../tutors/mia/mia_chat_screen.dart';
 import '../tutors/mia/mia_screen.dart';
 import '../tutors/mia/widgets/mia_presence.dart';
+import '../writing/writing_studio_screen.dart';
 import 'widgets/quick_actions_section.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -93,7 +94,17 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _handleLearningAction(QuickActionData action) async {
     switch (action.title) {
       case 'Conversation':
-        await _openMia();
+        final LearningProfile? talker = _profile;
+        if (talker == null) {
+          await _openMia();
+          return;
+        }
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => MiaChatScreen(profile: talker),
+          ),
+        );
+        if (mounted) await _loadHomeData();
         return;
       case 'Vocabulary':
         await _openLesson(LessonSkill.vocabulary);
@@ -112,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen>
         if (profile == null) return;
         await Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
-            builder: (_) => ConversationSessionScreen(profile: profile),
+            builder: (_) => WritingStudioScreen(profile: profile),
           ),
         );
         if (mounted) await _loadHomeData();

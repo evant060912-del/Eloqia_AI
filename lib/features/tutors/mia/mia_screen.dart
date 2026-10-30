@@ -7,7 +7,7 @@ import '../../../services/learning/learning_profile_service.dart';
 import '../../../services/voice/voice_output_provider.dart';
 import '../../../services/voice/voice_session_client.dart';
 import '../../../theme/app_colors.dart';
-import '../../learning/sessions/conversation_session_screen.dart';
+import '../../writing/writing_studio_screen.dart';
 import 'widgets/mia_presence.dart';
 import 'mia_chat_screen.dart';
 import 'mia_live_session_screen.dart';
@@ -540,7 +540,7 @@ class _MiaScreenState extends State<MiaScreen>
                 width: double.infinity,
                 height: 56,
                 child: FilledButton(
-                    onPressed: _isStartingConversation || !configured
+                  onPressed: _isStartingConversation || !configured
                       ? null
                       : _startConversation,
                   style: FilledButton.styleFrom(
@@ -556,9 +556,9 @@ class _MiaScreenState extends State<MiaScreen>
                     children: [
                       Text(
                         _isStartingConversation
-                          ? 'Connecting to Mia…'
-                          : configured
-                          ? 'Start conversation'
+                            ? 'Connecting to Mia…'
+                            : configured
+                            ? 'Start conversation'
                             : 'Unavailable',
                         style: const TextStyle(
                           fontSize: 14,
@@ -568,10 +568,10 @@ class _MiaScreenState extends State<MiaScreen>
                       SizedBox(width: 9),
                       Icon(
                         _isStartingConversation
-                          ? Icons.hourglass_top_rounded
-                          : configured
-                          ? Icons.arrow_forward_rounded
-                          : Icons.lock_outline_rounded,
+                            ? Icons.hourglass_top_rounded
+                            : configured
+                            ? Icons.arrow_forward_rounded
+                            : Icons.lock_outline_rounded,
                         size: 18,
                       ),
                     ],
@@ -609,7 +609,7 @@ class _MiaScreenState extends State<MiaScreen>
                 child: OutlinedButton.icon(
                   onPressed: _startWritingPractice,
                   icon: const Icon(Icons.edit_note_rounded, size: 19),
-                  label: const Text('Practice by writing'),
+                  label: const Text('Writing Studio'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: BorderSide(
@@ -730,7 +730,7 @@ class _MiaScreenState extends State<MiaScreen>
 
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => ConversationSessionScreen(profile: profile),
+          builder: (_) => WritingStudioScreen(profile: profile),
         ),
       );
     } on Object {

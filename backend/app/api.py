@@ -16,6 +16,11 @@ from app.chat import (
     summarize_session,
 )
 from app.config import Settings
+from app.writing import (
+    WritingEvaluationRequest,
+    WritingEvaluationResponse,
+    review_writing,
+)
 from app.schemas import LearningContext, SpeechRequest, VoiceSessionResponse
 from app.security import (
     AuthenticatedLearner,
@@ -45,6 +50,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.allowed_origins),
+    # Local development only: `flutter run` (or VS Code) picks a random port,
+    # so any localhost port is accepted while local auth is switched on.
+    allow_origin_regex=settings.local_origin_regex(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -297,4 +305,45 @@ async def summarize_mia_session(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"code": "mia_summary_unavailable"},
+        ) from None
+
+
+# ============================================================================
+# WRITING STUDIO (full-text review)
+# ============================================================================
+
+
+@app.post(
+    "/v1/writing/review",
+    response_model=WritingEvaluationResponse,
+    tags=["writing"],
+)
+async def review_learner_writing(
+    payload: WritingEvaluationRequest,
+    learner: AuthenticatedLearner = Depends(require_learner),
+) -> WritingEvaluationResponse:
+    """Mia reviews one piece of writing for a Writing Studio task."""
+    current = Settings.from_env()
+
+    if not current.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "mia_chat_not_configured"},
+        )
+
+    # Same per-learner budget as the chat: one review counts as one request.
+    limit = rate_limiter.check(learner.subject, current)
+    if limit is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "mia_chat_rate_limited", "limit": limit},
+        )
+
+    try:
+        return await review_writing(payload, current)
+    except MiaChatError as error:
+        logger.warning("Writing review failed: %s", error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "writing_review_unavailable"},
         ) from None

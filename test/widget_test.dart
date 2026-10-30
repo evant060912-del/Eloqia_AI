@@ -73,7 +73,7 @@ void main() {
       expect(find.textContaining('CONFIGURATION REQUIRED'), findsOneWidget);
       expect(find.text('Unavailable'), findsOneWidget);
       expect(find.text('Voice session consent'), findsNothing);
-      expect(find.text('Practice by writing'), findsOneWidget);
+      expect(find.text('Writing Studio'), findsOneWidget);
     },
   );
 }

@@ -6,6 +6,45 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Writing Studio
+
+## Added
+
+* Writing Studio: 13 genres with their own objectives, approach and
+  server-side weighted criteria; 43 authored tasks across A1–A2, B1–B2 and
+  C1–C2, including three original source texts for summaries.
+* Writing workspace: brief with progressive hints, autosaved drafts, live word
+  count against the target, deterministic "Check basics", side-by-side layout
+  on wide screens.
+* Mia's writing review (`POST /v1/writing/review`): level- and
+  correction-style-aware instructions, quotes checked against the learner's
+  text, certainty and priority for every correction, rule, example, next step,
+  revision plan, revised version and a next activity linked to a real lesson.
+  OpenAI moderation on the text and on Mia's answer; shared rate limit.
+* Review screen: the learner's text annotated with numbered marks, criteria,
+  strengths, corrections filterable by priority, automatic checks, revision
+  plan, revised version and practice score (labelled as an estimate).
+* Review history (last 20) and drafts kept on the device under `eloqia.`.
+* `.vscode/launch.json`: server + app with the right `--dart-define` values.
+
+## Changed
+
+* Home and Learn: "Writing" opens the Writing Studio, "Conversation" opens the
+  chat with Mia directly. Mia's "Practice by writing" button became "Writing
+  Studio".
+* In local development (`ELOQIA_ENV=development` and
+  `ELOQIA_ALLOW_LOCAL_AUTH=true`) the API accepts any `localhost` port, so
+  launching from VS Code no longer breaks CORS. `.env.example` enables local
+  auth for development.
+* The "Writer" achievement now reads "Complete a writing task with Mia".
+
+## Removed
+
+* `ConversationSessionScreen` (local writing prompts without review) and its
+  test: replaced by the Writing Studio.
+
+---
+
 # [Unreleased] — Mia Conversation 2.0
 
 ## Added

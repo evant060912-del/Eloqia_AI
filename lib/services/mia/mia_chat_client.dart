@@ -8,6 +8,7 @@ import '../../models/learning_profile.dart';
 import '../voice/voice_output_provider.dart' show MiaSpeechStyle;
 import '../voice/voice_session_client.dart'
     show OidcAccessTokenProvider, VoiceSessionClient;
+import 'writing_review.dart';
 
 /// What the learner wants to do with Mia.
 enum MiaChatMode {
@@ -255,6 +256,8 @@ class MiaChatException implements Exception {
     'network' => 'Impossible de joindre le serveur de Mia.',
     'mia_summary_unavailable' =>
       'Le bilan de séance n\'a pas pu être préparé. Réessaie dans un instant.',
+    'writing_review_unavailable' =>
+      'Mia n\'a pas pu relire ton texte. Il est gardé : réessaie dans un instant.',
     _ => 'Mia ne peut pas répondre pour le moment. Réessaie dans un instant.',
   };
 
@@ -419,7 +422,85 @@ class MiaChatClient {
     return MiaSessionSummary.fromJson(Map<String, dynamic>.from(decoded));
   }
 
-  Future<Object?> _post(String path, Map<String, dynamic> body) async {
+  static const int maxWritingStudioChars = 6000;
+
+  /// Builds the Writing Studio body. Public for tests.
+  @visibleForTesting
+  static Map<String, dynamic> buildWritingReviewRequest({
+    required String genre,
+    required String taskId,
+    required String taskTitle,
+    required String prompt,
+    required int minWords,
+    required int maxWords,
+    required String text,
+    required Map<String, dynamic> context,
+    String? sourceText,
+    List<String> knownDifficulties = const <String>[],
+  }) {
+    final String trimmed = text.trim();
+    return <String, dynamic>{
+      'genre': genre,
+      'task_id': taskId,
+      'task_title': taskTitle,
+      'prompt': prompt,
+      if (sourceText != null && sourceText.trim().isNotEmpty)
+        'source_text': sourceText.trim(),
+      'min_words': minWords,
+      'max_words': maxWords,
+      'text': trimmed.length > maxWritingStudioChars
+          ? trimmed.substring(0, maxWritingStudioChars)
+          : trimmed,
+      'context': context,
+      'known_difficulties': knownDifficulties
+          .map((String d) => d.trim())
+          .where((String d) => d.isNotEmpty)
+          .map((String d) => d.length > 120 ? d.substring(0, 120) : d)
+          .toSet()
+          .take(8)
+          .toList(growable: false),
+    };
+  }
+
+  /// Mia reviews a full Writing Studio text (`POST /v1/writing/review`).
+  Future<WritingReview> reviewWriting({
+    required String genre,
+    required String taskId,
+    required String taskTitle,
+    required String prompt,
+    required int minWords,
+    required int maxWords,
+    required String text,
+    required LearningProfile profile,
+    String? sourceText,
+    List<String> knownDifficulties = const <String>[],
+  }) async {
+    final Object? decoded = await _post(
+      '/v1/writing/review',
+      buildWritingReviewRequest(
+        genre: genre,
+        taskId: taskId,
+        taskTitle: taskTitle,
+        prompt: prompt,
+        minWords: minWords,
+        maxWords: maxWords,
+        text: text,
+        context: VoiceSessionClient.learningContextFor(profile),
+        sourceText: sourceText,
+        knownDifficulties: knownDifficulties,
+      ),
+      timeout: const Duration(seconds: 100),
+    );
+    final WritingReview? review = WritingReview.tryParse(decoded);
+    if (review == null) throw const MiaChatException('invalid_reply');
+    return review;
+  }
+
+  Future<Object?> _post(
+    String path,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
     final http.Response response;
     try {
       response = await _httpClient
@@ -428,7 +509,7 @@ class MiaChatClient {
             headers: await _headers(),
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(timeout);
     } on TimeoutException {
       throw const MiaChatException('network');
     } on http.ClientException {
