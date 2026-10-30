@@ -6,6 +6,30 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — More lessons, lesson library and spaced review
+
+## Added
+
+* 15 new lessons (36 in total): grammar (present simple, comparatives,
+  should/must/have to, relative clauses, mixed conditionals), vocabulary
+  (family, food and cooking, phrasal verbs, environment, academic register)
+  and reading (five original texts). Grammar, vocabulary and reading now have
+  at least two lessons at every level from A1 to C1.
+* Spaced review (Leitner boxes): grammar and vocabulary exercises missed at
+  the first try come back the next day, then after 3, 7, 14 and 30 days; a
+  mistake brings them back the next day; after the last box they count as
+  mastered. The deck stays on the device under `eloqia.lessons.review`.
+* "Spaced review" card in Learn (due count, or what is scheduled) and a
+  "Spaced review" line on the lesson results screen.
+* Lesson library: Grammar, Vocabulary, Reading and Listening in Learn list
+  every lesson by level, completed ones ticked, with the recommended lesson
+  and its reason first.
+
+## Changed
+
+* Learn → Grammar/Vocabulary/Reading/Listening opens the library instead of
+  starting one automatically chosen lesson (Home keeps the quick start).
+
 # [Unreleased] — TOEFL and IELTS writing preparation
 
 ## Added

@@ -5,9 +5,12 @@ import '../../../models/progress.dart';
 import '../../onboarding/assessment/level_assessment_data.dart';
 import '../../onboarding/assessment/level_assessment_result.dart';
 import '../content/grammar_content.dart';
+import '../content/grammar_content_more.dart';
 import '../content/listening_content.dart';
 import '../content/reading_content.dart';
+import '../content/reading_content_more.dart';
 import '../content/vocabulary_content.dart';
+import '../content/vocabulary_content_more.dart';
 import '../models/lesson_models.dart';
 
 class LessonCatalog {
@@ -15,10 +18,24 @@ class LessonCatalog {
 
   static final List<Lesson> all = List<Lesson>.unmodifiable(<Lesson>[
     ...grammarLessons,
+    ...moreGrammarLessons,
     ...vocabularyLessons,
+    ...moreVocabularyLessons,
     ...readingLessons,
+    ...moreReadingLessons,
     ...listeningLessons,
   ]);
+
+  static final Map<String, ({Exercise exercise, Lesson lesson})> _exercises =
+      <String, ({Exercise exercise, Lesson lesson})>{
+        for (final Lesson lesson in all)
+          for (final Exercise exercise in lesson.allExercises)
+            exercise.id: (exercise: exercise, lesson: lesson),
+      };
+
+  /// An exercise and its lesson, by exercise id (spaced review).
+  static ({Exercise exercise, Lesson lesson})? exercise(String id) =>
+      _exercises[id];
 
   static List<Lesson> forSkill(LessonSkill skill) =>
       all.where((Lesson l) => l.skill == skill).toList();
@@ -75,11 +92,12 @@ class LessonEngine {
     return (index: 2, source: 'a default B1 start (no level set yet)');
   }
 
-  static Set<String> completedLessonIds(List<LearningSession> sessions) => <String>{
-    for (final LearningSession s in sessions)
-      if (s.completed && s.metadata['lessonId'] is String)
-        s.metadata['lessonId'] as String,
-  };
+  static Set<String> completedLessonIds(List<LearningSession> sessions) =>
+      <String>{
+        for (final LearningSession s in sessions)
+          if (s.completed && s.metadata['lessonId'] is String)
+            s.metadata['lessonId'] as String,
+      };
 
   static Set<String> weakTopics(List<LearningMemory> memories) => <String>{
     for (final LearningMemory m in memories)
@@ -126,7 +144,8 @@ class LessonEngine {
         'You missed ${chosen.topic} earlier, so this targets it.',
       if (chosen.tags.any(interests.contains))
         'It fits your stated interests or goal.',
-      if (done.contains(chosen.id)) 'You completed this before; this is a review.',
+      if (done.contains(chosen.id))
+        'You completed this before; this is a review.',
     ];
     return LessonChoice(lesson: chosen, reason: reasons.join(' '));
   }
@@ -167,7 +186,8 @@ class LessonEngine {
     String why;
     if (weakSkill != null && weak.isNotEmpty) {
       pick = weakSkill;
-      why = 'Your recent ${pick.label.toLowerCase()} practice showed a topic to revisit.';
+      why =
+          'Your recent ${pick.label.toLowerCase()} practice showed a topic to revisit.';
     } else {
       final List<LessonSkill> order = LessonSkill.values.toList()
         ..sort((LessonSkill a, LessonSkill b) {

@@ -14,6 +14,11 @@ class LearningScreen extends StatefulWidget {
   final VoidCallback onStartRecommended;
   final ValueChanged<String> onActivitySelected;
 
+  /// Spaced review: exercises due now and in the whole deck.
+  final int reviewDue;
+  final int reviewTotal;
+  final VoidCallback? onReview;
+
   const LearningScreen({
     super.key,
     required this.profile,
@@ -22,6 +27,9 @@ class LearningScreen extends StatefulWidget {
     required this.learningMinutes,
     required this.onStartRecommended,
     required this.onActivitySelected,
+    this.reviewDue = 0,
+    this.reviewTotal = 0,
+    this.onReview,
   });
 
   @override
@@ -97,6 +105,11 @@ class _LearningScreenState extends State<LearningScreen>
                         _buildDailyMission(),
                         const SizedBox(height: 18),
                         _buildProgressCard(),
+                        if (widget.onReview != null &&
+                            widget.reviewTotal > 0) ...[
+                          const SizedBox(height: 18),
+                          _buildReviewCard(),
+                        ],
                         const SizedBox(height: 32),
                         _buildLearningHeader(),
                         const SizedBox(height: 16),
@@ -439,6 +452,64 @@ class _LearningScreenState extends State<LearningScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReviewCard() {
+    final int due = widget.reviewDue;
+    final bool ready = due > 0;
+    return Semantics(
+      button: ready,
+      child: GestureDetector(
+        onTap: ready ? widget.onReview : null,
+        child: _GlassPanel(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Icon(
+                ready
+                    ? Icons.replay_circle_filled_rounded
+                    : Icons.event_rounded,
+                color: AppColors.vocabulary,
+                size: 30,
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ready
+                          ? 'Spaced review: $due due'
+                          : 'Spaced review: all caught up',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      ready
+                          ? 'Exercises you missed, back at the right moment. '
+                                'About ${(due / 2).ceil()} min.'
+                          : '${widget.reviewTotal} exercises scheduled for '
+                                'the coming days.',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (ready)
+                const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+            ],
+          ),
+        ),
       ),
     );
   }
