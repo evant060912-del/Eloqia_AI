@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../services/voice/voice_output_provider.dart';
+import '../../../services/voice/listening_accents.dart';
+import '../../../services/voice/listening_voices.dart';
 import '../../../theme/app_colors.dart';
 import '../models/lesson_models.dart';
 
@@ -25,6 +26,8 @@ class _ListeningPlayerState extends State<ListeningPlayer>
     with SingleTickerProviderStateMixin {
   late final AnimationController _wave;
   bool? _available;
+  Set<ListeningAccent> _installed = <ListeningAccent>{};
+  late final ListeningVoice _voice = ListeningVoices.provider;
   bool _playing = false;
   int _line = -1;
   int _token = 0;
@@ -37,26 +40,48 @@ class _ListeningPlayerState extends State<ListeningPlayer>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    unawaited(
-      MiaVoice.provider.isAvailable().then((bool ok) {
-        if (mounted) {
-          setState(() => _available = ok);
-        }
-      }),
-    );
+    unawaited(_checkVoices());
+  }
+
+  Future<void> _checkVoices() async {
+    bool ok;
+    Set<ListeningAccent> installed;
+    try {
+      ok = await _voice.isAvailable();
+      installed = await _voice.accents();
+    } on Object {
+      ok = false;
+      installed = <ListeningAccent>{};
+    }
+    if (mounted) {
+      setState(() {
+        _available = ok;
+        _installed = installed;
+      });
+    }
   }
 
   @override
   void dispose() {
     _token++;
     _wave.dispose();
-    unawaited(MiaVoice.provider.stop());
+    unawaited(_voice.stop());
     super.dispose();
+  }
+
+  /// Accents of the dialogue with no matching voice on this device.
+  List<ListeningAccent> get _missingAccents {
+    if (_voice is! DeviceListeningVoice) return const <ListeningAccent>[];
+    return <ListeningAccent>{
+      for (final AudioLine line in widget.lines)
+        if (line.accent != null && !_installed.contains(line.accent))
+          line.accent!,
+    }.toList();
   }
 
   Future<void> _play({required bool slow}) async {
     final int token = ++_token;
-    await MiaVoice.provider.stop();
+    await _voice.stop();
     if (!mounted) {
       return;
     }
@@ -72,10 +97,11 @@ class _ListeningPlayerState extends State<ListeningPlayer>
       }
       setState(() => _line = i);
       final AudioLine line = widget.lines[i];
-      await MiaVoice.provider.speak(
-        line.text,
-        otherSpeaker: line.speaker != 'Mia',
-        speedFactor: slow ? 0.78 : 1.0,
+      await _voice.speakLine(
+        speaker: line.speaker,
+        text: line.text,
+        accent: line.accent,
+        slow: slow,
       );
     }
     if (token == _token && mounted) {
@@ -89,7 +115,7 @@ class _ListeningPlayerState extends State<ListeningPlayer>
 
   Future<void> _stop() async {
     _token++;
-    await MiaVoice.provider.stop();
+    await _voice.stop();
     if (mounted) {
       _wave.stop();
       setState(() {
@@ -196,14 +222,53 @@ class _ListeningPlayerState extends State<ListeningPlayer>
             const SizedBox(height: 10),
             _waveform(),
           ],
-          if (!unavailable)
-            const Padding(
-              padding: EdgeInsets.only(top: 10),
+          if (!unavailable) ...<Widget>[
+            if (_speakers.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: <Widget>[
+                    for (final MapEntry<String, ListeningAccent> s
+                        in _speakers.entries)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.electricBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${s.key} · ${s.value.label}',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
               child: Text(
-                'Audio is generated on this device with its English text-to-speech voice.',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                _missingAccents.isEmpty
+                    ? _voice.description
+                    : '${_voice.description} No '
+                          '${_missingAccents.map((ListeningAccent a) => a.label).join(' or ')} '
+                          'voice is installed: a standard English voice reads '
+                          'those lines.',
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
               ),
             ),
+          ],
           if (transcript) ...<Widget>[
             const SizedBox(height: 12),
             const Divider(height: 1, color: AppColors.glassBorder),
@@ -222,7 +287,9 @@ class _ListeningPlayerState extends State<ListeningPlayer>
                     ),
                     children: <InlineSpan>[
                       TextSpan(
-                        text: '${widget.lines[i].speaker}: ',
+                        text:
+                            '${widget.lines[i].speaker}'
+                            '${widget.lines[i].accent == null ? '' : ' (${widget.lines[i].accent!.label})'}: ',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       TextSpan(text: widget.lines[i].text),
@@ -242,6 +309,12 @@ class _ListeningPlayerState extends State<ListeningPlayer>
       ),
     );
   }
+
+  /// Each speaker with an accent, in order of appearance.
+  Map<String, ListeningAccent> get _speakers => <String, ListeningAccent>{
+    for (final AudioLine line in widget.lines)
+      if (line.accent != null) line.speaker: line.accent!,
+  };
 
   Widget _waveform() {
     return SizedBox(

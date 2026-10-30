@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../services/voice/listening_accents.dart';
 import '../../../theme/app_colors.dart';
 import '../../onboarding/assessment/level_assessment_data.dart';
 import '../engine/lesson_engine.dart';
@@ -22,6 +23,9 @@ class LessonLibraryScreen extends StatefulWidget {
 class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
   LessonContext? _data;
   Object? _error;
+
+  /// Listening only: show lessons with this accent (null = all).
+  ListeningAccent? _accent;
 
   @override
   void initState() {
@@ -79,8 +83,13 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
   Widget _list(LessonContext data) {
     final LessonChoice recommended = data.select(widget.skill);
     final Set<String> done = LessonEngine.completedLessonIds(data.sessions);
-    final List<Lesson> lessons = LessonCatalog.forSkill(widget.skill)
+    final bool listening = widget.skill == LessonSkill.listening;
+    final List<Lesson> all = LessonCatalog.forSkill(widget.skill)
       ..sort((Lesson a, Lesson b) => a.levelIndex.compareTo(b.levelIndex));
+    final ListeningAccent? accent = _accent;
+    final List<Lesson> lessons = accent == null
+        ? all
+        : all.where((Lesson l) => l.accents.contains(accent)).toList();
     final List<int> levels = lessons
         .map((Lesson l) => l.levelIndex)
         .toSet()
@@ -94,14 +103,35 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
             children: <Widget>[
               Text(
-                '${lessons.length} lessons, ${done.where((String id) => lessons.any((Lesson l) => l.id == id)).length} completed.',
+                '${all.length} lessons, ${done.where((String id) => all.any((Lesson l) => l.id == id)).length} completed.',
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
+              if (listening) ...<Widget>[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    ChoiceChip(
+                      label: const Text('All accents'),
+                      selected: accent == null,
+                      onSelected: (_) => setState(() => _accent = null),
+                    ),
+                    for (final ListeningAccent a in ListeningAccent.values)
+                      ChoiceChip(
+                        label: Text(a.label),
+                        selected: accent == a,
+                        onSelected: (_) => setState(() => _accent = a),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 14),
-              _RecommendedCard(
-                choice: recommended,
-                onStart: () => _open(recommended),
-              ),
+              if (accent == null)
+                _RecommendedCard(
+                  choice: recommended,
+                  onStart: () => _open(recommended),
+                ),
               for (final int level in levels) ...<Widget>[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
@@ -268,6 +298,7 @@ class _LessonTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       '${lesson.estimatedMinutes} min · ${lesson.xpReward} XP'
+                      '${lesson.accents.isEmpty ? '' : ' · ${lesson.accents.map((ListeningAccent a) => a.label).join(', ')}'}'
                       '${recommended ? ' · Recommended' : ''}',
                       style: TextStyle(
                         color: recommended
