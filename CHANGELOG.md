@@ -6,6 +6,24 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Full mock exams
+
+## Added
+
+* TOEFL and IELTS mock exams ("Full mock exam" in each exam space): the
+  Writing and Speaking tasks in exam order and with the official timers
+  (Build a Sentence, email, academic discussion, Listen and Repeat, interview;
+  IELTS Task 1 Academic or General, Task 2, Speaking Parts 1 to 3).
+* Tasks are chosen among those not done yet; progress is kept on the device,
+  so a mock can be interrupted and resumed, or abandoned.
+* Report: IELTS Writing band (Task 2 counts double), Speaking band (average of
+  the parts) and their average; TOEFL Writing and Speaking as percentages of
+  the task maxima; every task score; advice on the weakest criterion. The last
+  10 mocks are kept per exam. Everything is labelled unofficial (no Reading or
+  Listening section, no public TOEFL conversion).
+* In a mock, the writing timer starts by itself and speaking answers are sent
+  to Mia for review as soon as they are finished.
+
 # [Unreleased] — Microphone and speaking practice
 
 ## Added

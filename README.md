@@ -35,6 +35,13 @@ answer-specific feedback, retries, per-answer XP, combos, achievements, and
 local progress/memory updates. The optional placement estimate is not a
 certification.
 
+## Mock exams
+
+Each exam space has a "Full mock exam": the TOEFL or IELTS Writing and
+Speaking tasks in order and with official timers, resumable, then a report
+(IELTS Writing and Speaking bands, TOEFL percentages, weakest criterion).
+Scores need Mia's review for writing and interviews; all are unofficial.
+
 ## Microphone and speaking
 
 The microphone uses the free speech recognition of the device or browser

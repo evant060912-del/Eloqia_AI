@@ -30,7 +30,11 @@ class SpeakingSessionScreen extends StatefulWidget {
     required this.set,
     required this.profile,
     this.client,
+    this.autoReview = false,
   });
+
+  /// Mock exams: ask Mia for the review as soon as the answers are done.
+  final bool autoReview;
 
   final SpeakingSet set;
   final LearningProfile profile;
@@ -176,7 +180,10 @@ class _SpeakingSessionScreenState extends State<SpeakingSessionScreen> {
 
   Future<void> _finish() async {
     setState(() => _stage = _Stage.results);
-    if (_set.kind != SpeakingKind.listenRepeat) return;
+    if (_set.kind != SpeakingKind.listenRepeat) {
+      if (widget.autoReview && widget.client != null) await _askMia();
+      return;
+    }
     final int correct = <int>[
       for (int i = 0; i < _set.items.length; i++)
         if (RepeatScore.compare(_set.items[i].prompt, _answers[i]).correct) i,
