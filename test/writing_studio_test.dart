@@ -64,8 +64,9 @@ Map<String, dynamic> _review() => <String, dynamic>{
 void main() {
   group('catalog', () {
     test('13 genres, each with a task at every level band', () {
-      expect(WritingGenre.values, hasLength(13));
-      for (final WritingGenre genre in WritingGenre.values) {
+      expect(WritingGenre.studio, hasLength(13));
+      expect(WritingGenre.values, hasLength(18));
+      for (final WritingGenre genre in WritingGenre.studio) {
         for (final WritingBand band in WritingBand.values) {
           expect(
             WritingCatalog.tasksFor(genre, band: band),
@@ -87,8 +88,8 @@ void main() {
         }
         if (task.genre == WritingGenre.summary) {
           expect(task.sourceText, isNotNull);
-          expect(task.sourceText!.length, lessThanOrEqualTo(3000));
         }
+        expect(task.reviewSource?.length ?? 0, lessThanOrEqualTo(3000));
       }
     });
 

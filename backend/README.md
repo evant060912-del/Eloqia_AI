@@ -57,6 +57,12 @@ Mia's text routes (OpenAI key required): `POST /v1/mia/chat`,
 `POST /v1/mia/chat/summary` and `POST /v1/writing/review` (Writing Studio).
 They share one per-learner rate limit.
 
+`POST /v1/writing/review` also accepts the five exam genres (`toefl_email`,
+`toefl_discussion`, `ielts_task1_academic`, `ielts_task1_general`,
+`ielts_task2`). IELTS criteria are scored 0–9 and TOEFL tasks 0–5; the response
+then includes `exam_estimate` (unofficial). Optional `time_limit_seconds` and
+`time_used_seconds` describe a timed attempt.
+
 For local development set `ELOQIA_ENV=development` and
 `ELOQIA_ALLOW_LOCAL_AUTH=true`: requests from `127.0.0.1` are accepted without
 OIDC, and browsers may call the API from any `localhost` port.
