@@ -7,6 +7,8 @@ import '../../features/lessons/lesson_launcher.dart';
 import '../../features/lessons/models/lesson_models.dart';
 import '../../models/learning_profile.dart';
 import '../../services/learning/learning_profile_service.dart';
+import '../../services/learning/personal_plan.dart';
+import '../../services/learning/personal_plan_service.dart';
 import '../../services/progress_service.dart';
 import '../../services/voice/voice_output_provider.dart';
 import '../../theme/app_colors.dart';
@@ -14,6 +16,7 @@ import '../tutors/mia/mia_chat_screen.dart';
 import '../tutors/mia/mia_screen.dart';
 import '../tutors/mia/widgets/mia_presence.dart';
 import '../writing/writing_studio_screen.dart';
+import 'widgets/personal_plan_card.dart';
 import 'widgets/quick_actions_section.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -31,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen>
   ProgressSnapshot? _progress;
   LessonContext? _lessonContext;
   LessonChoice? _lessonChoice;
+  PersonalPlan? _plan;
   bool _isLoading = true;
 
   @override
@@ -47,6 +51,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadHomeData() async {
     try {
+      // The daily goal follows the onboarding pace, once.
+      await PersonalPlanService.applyDailyGoalOnce(
+        PersonalPlan.from(await LearningProfileService.getProfile()),
+      );
       final List<Object?> loaded = await Future.wait<Object?>(<Future<Object?>>[
         LearningProfileService.getProfile(),
         ProgressService.getSnapshot(),
@@ -66,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen>
         _progress = progress;
         _lessonContext = lessonContext;
         _lessonChoice = lessonChoice;
+        _plan = PersonalPlan.from(profile);
         _isLoading = false;
       });
     } catch (_) {
@@ -91,8 +100,11 @@ class _HomeScreenState extends State<HomeScreen>
     await _loadHomeData();
   }
 
-  Future<void> _handleLearningAction(QuickActionData action) async {
-    switch (action.title) {
+  Future<void> _handleLearningAction(QuickActionData action) =>
+      _openActivity(action.title);
+
+  Future<void> _openActivity(String title) async {
+    switch (title) {
       case 'Conversation':
         final LearningProfile? talker = _profile;
         if (talker == null) {
@@ -204,6 +216,15 @@ class _HomeScreenState extends State<HomeScreen>
                       _buildMiaCompanion(),
                       const SizedBox(height: 24),
                       _buildDailyIntelligence(),
+                      if (_plan != null && !_plan!.isEmpty) ...[
+                        const SizedBox(height: 22),
+                        PersonalPlanCard(
+                          plan: _plan!,
+                          onOpen: (PlanArea area) =>
+                              _openActivity(area.activity),
+                          onExamPrep: () => _openActivity('Writing'),
+                        ),
+                      ],
                       const SizedBox(height: 22),
                       _buildStats(),
                       const SizedBox(height: 34),
