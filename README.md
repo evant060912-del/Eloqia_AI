@@ -35,6 +35,21 @@ answer-specific feedback, retries, per-answer XP, combos, achievements, and
 local progress/memory updates. The optional placement estimate is not a
 certification.
 
+## Listening
+
+Dialogues are read by the free voices installed on the device, with American,
+British and Australian accents when the device has them (Chrome includes
+American and British voices; others depend on the system). 12 listening
+lessons, filters by accent, "Who says it?" and dictation questions. Mia's own
+voice (Cartesia) is only used for conversation.
+
+## Personal plan
+
+The onboarding answers become a plan shown on Home ("Your plan"): up to three
+focus areas with the learner's reason, the daily goal from the chosen pace
+(applied once) and, for school or academic goals, a link to the TOEFL/IELTS
+writing practice. Lesson recommendations favour the focus skills.
+
 ## Lessons and spaced review
 
 Learn → Grammar, Vocabulary, Reading or Listening opens a library of 36
