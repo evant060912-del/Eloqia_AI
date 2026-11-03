@@ -69,6 +69,15 @@ This changelog tracks the evolution of the project step by step, from its first 
 * `pubspec.yaml`: `speech_to_text: ^7.3.0` (run `flutter pub get`);
   microphone and speech recognition permissions for Android and iOS.
 
+# [Unreleased] — More real-video listening lessons
+
+## Added
+
+* Four more VOA Learning English videos (public domain), with original
+  questions and the official transcript after answering: "New neighbours"
+  (A1), "The wrong number" (A1), "The job interview" (B1) and "Two versions of
+  one morning" (B2). Six real-video lessons in total.
+
 # [Unreleased] — Listening with real videos
 
 ## Added
