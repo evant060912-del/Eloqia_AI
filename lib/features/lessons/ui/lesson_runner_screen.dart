@@ -59,8 +59,14 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
   bool _saving = false;
   bool _loadingNext = false;
 
+  /// The lesson's real video, kept across questions (null without video).
+  late final VideoClipSession? _videoSession = widget.lesson.video == null
+      ? null
+      : VideoClipSession(widget.lesson.video!);
+
   @override
   void dispose() {
+    _videoSession?.dispose();
     _scroll.dispose();
     unawaited(MiaVoice.provider.stop());
     super.dispose();
@@ -615,6 +621,7 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
               if (widget.lesson.video != null) ...<Widget>[
                 VideoClipPlayer(
                   clip: widget.lesson.video!,
+                  session: _videoSession,
                   transcript: widget.lesson.audio,
                   showTranscript: outcome != null,
                 ),

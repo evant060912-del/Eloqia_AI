@@ -69,6 +69,22 @@ This changelog tracks the evolution of the project step by step, from its first 
 * `pubspec.yaml`: `speech_to_text: ^7.3.0` (run `flutter pub get`);
   microphone and speech recognition permissions for Android and iOS.
 
+# [Unreleased] — Real-video player fixes
+
+## Fixed
+
+* The lesson video was reloaded and restarted at every question: it is now
+  kept for the whole lesson (`VideoClipSession`).
+* A video that fails while playing, or does not load within 25 seconds, now
+  shows a clear message and an "Open the original video" button.
+* Volume set explicitly; a large "Tap to play · sound on" button over the
+  video before it starts (browsers do not start videos with sound alone).
+
+## Changed
+
+* Listening library: real-video lessons come first within each level.
+* `pubspec.yaml`: `url_launcher` (run `flutter pub get`).
+
 # [Unreleased] — Listening with real videos
 
 ## Added

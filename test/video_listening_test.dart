@@ -40,6 +40,10 @@ void main() {
   testWidgets('the credit and the transcript are shown', (
     WidgetTester tester,
   ) async {
+    VideoClipSession.loadTimeout = const Duration(milliseconds: 1);
+    addTearDown(
+      () => VideoClipSession.loadTimeout = const Duration(seconds: 25),
+    );
     final Lesson lesson = LessonCatalog.byId('video-voa-welcome')!;
     await tester.pumpWidget(
       MaterialApp(
@@ -54,7 +58,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 10));
     expect(find.textContaining('Public domain'), findsOneWidget);
     await tester.tap(find.text('Show transcript'));
     await tester.pump();
