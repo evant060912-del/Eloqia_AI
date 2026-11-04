@@ -90,13 +90,20 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
     final List<Lesson> all = LessonCatalog.forSkill(widget.skill)
       ..sort((Lesson a, Lesson b) => a.levelIndex.compareTo(b.levelIndex));
     final ListeningAccent? accent = _accent;
-    final List<Lesson> lessons = all
-        .where(
-          (Lesson l) =>
-              (accent == null || l.accents.contains(accent)) &&
-              (!_videosOnly || l.video != null),
-        )
-        .toList();
+    final List<Lesson> lessons =
+        all
+            .where(
+              (Lesson l) =>
+                  (accent == null || l.accents.contains(accent)) &&
+                  (!_videosOnly || l.video != null),
+            )
+            .toList()
+          // Real videos first within each level.
+          ..sort((Lesson a, Lesson b) {
+            final int byLevel = a.levelIndex.compareTo(b.levelIndex);
+            if (byLevel != 0) return byLevel;
+            return (a.video == null ? 1 : 0).compareTo(b.video == null ? 1 : 0);
+          });
     final List<int> levels = lessons
         .map((Lesson l) => l.levelIndex)
         .toSet()
