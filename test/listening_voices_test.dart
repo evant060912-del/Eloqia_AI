@@ -251,4 +251,42 @@ void main() {
     expect(find.text('Finding the station'), findsOneWidget);
     expect(find.text('Meeting Sam'), findsNothing);
   });
+
+  test('the most natural free voices are chosen first', () {
+    final VoiceCasting casting = VoiceCasting(
+      DeviceVoice.parse(<Map<String, String>>[
+        <String, String>{'name': 'Bad News', 'locale': 'en-US'},
+        <String, String>{'name': 'Daniel', 'locale': 'en-GB'},
+        <String, String>{'name': 'Google UK English Female', 'locale': 'en-GB'},
+        <String, String>{
+          'name': 'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+          'locale': 'en-GB',
+        },
+        <String, String>{'name': 'Samantha', 'locale': 'en-US'},
+        <String, String>{'name': 'Lee', 'locale': 'en-AU'},
+        <String, String>{
+          'name': 'Karen',
+          'locale': 'en-AU',
+          'quality': 'enhanced',
+        },
+      ]),
+    );
+    expect(
+      casting.voicesFor(ListeningAccent.british).map((DeviceVoice v) => v.name),
+      <String>[
+        'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+        'Google UK English Female',
+        'Daniel',
+      ],
+    );
+    expect(casting.voicesFor(ListeningAccent.australian).first.name, 'Karen');
+    expect(
+      casting
+          .voicesFor(ListeningAccent.american)
+          .map((DeviceVoice v) => v.name),
+      <String>['Samantha'],
+      reason: 'novelty voices are left out',
+    );
+    expect(casting.hasNaturalVoices, isTrue);
+  });
 }

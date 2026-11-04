@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../../services/voice/listening_accents.dart';
@@ -30,6 +31,15 @@ class _ListeningPlayerState extends State<ListeningPlayer>
 
   /// Voice name per speaker (device voices), shown next to the speaker.
   Map<String, String> _voiceNames = <String, String>{};
+
+  /// In a browser without neural voices, suggest Edge (free "Natural"
+  /// voices, much less robotic).
+  bool get _suggestEdge =>
+      kIsWeb &&
+      _voiceNames.isNotEmpty &&
+      !_voiceNames.values.any(
+        (String name) => name.toLowerCase().contains('natural'),
+      );
   late final ListeningVoice _voice = ListeningVoices.provider;
   bool _playing = false;
   int _line = -1;
@@ -264,6 +274,20 @@ class _ListeningPlayerState extends State<ListeningPlayer>
                         ),
                       ),
                   ],
+                ),
+              ),
+            if (_suggestEdge)
+              const Padding(
+                key: Key('edge-voices-tip'),
+                padding: EdgeInsets.only(top: 10),
+                child: Text(
+                  'Tip: for much more natural free voices, open Eloqia in '
+                  'Microsoft Edge (its "Natural" voices).',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
             Padding(

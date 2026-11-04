@@ -115,6 +115,18 @@ This changelog tracks the evolution of the project step by step, from its first 
 * `pubspec.yaml`: `video_player` and `youtube_player_iframe` (run
   `flutter pub get`).
 
+# [Unreleased] — More natural free voices
+
+## Changed
+
+* Listening dialogues now pick the most natural free voices first: neural
+  voices (Microsoft Edge "Natural"), then enhanced or premium voices (iOS,
+  macOS, Android quality 400+), then Google voices, then standard ones.
+  Novelty voices (singing, whispering, robots) are never used when another
+  English voice exists. Before, voices were taken in alphabetical order.
+* In a browser without neural voices, the listening player suggests opening
+  Eloqia in Microsoft Edge.
+
 # [Unreleased] — Listening with free device voices and accents
 
 ## Added

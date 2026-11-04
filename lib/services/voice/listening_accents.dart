@@ -28,6 +28,7 @@ class DeviceVoice {
     required this.name,
     required this.locale,
     String? rawLocale,
+    this.qualityHint,
   }) : rawLocale = rawLocale ?? locale;
 
   /// Reads the maps returned by `flutter_tts` (`name`, `locale`), skipping
@@ -40,11 +41,13 @@ class DeviceVoice {
       final Object? name = item['name'];
       final Object? locale = item['locale'];
       if (name is! String || locale is! String || name.isEmpty) continue;
+      final Object? quality = item['quality'];
       voices.add(
         DeviceVoice(
           name: name,
           locale: normaliseLocale(locale),
           rawLocale: locale,
+          qualityHint: quality == null ? null : '$quality',
         ),
       );
     }
@@ -58,6 +61,60 @@ class DeviceVoice {
 
   /// As reported by the engine, which needs it back to select the voice.
   final String rawLocale;
+
+  /// Quality the engine reports, when it does (iOS: "enhanced",
+  /// "premium"; Android: a number, 400 = very high).
+  final String? qualityHint;
+
+  /// Novelty voices of macOS and iOS (singing, whispering, robots).
+  static const Set<String> _novelty = <String>{
+    'albert',
+    'bad news',
+    'bahh',
+    'bells',
+    'boing',
+    'bubbles',
+    'cellos',
+    'good news',
+    'jester',
+    'organ',
+    'superstar',
+    'trinoids',
+    'whisper',
+    'wobble',
+    'zarvox',
+    'junior',
+    'ralph',
+    'fred',
+    'kathy',
+    'deranged',
+    'hysterical',
+    'pipe organ',
+    'princess',
+  };
+
+  /// How natural the voice sounds, higher is better: neural voices (Edge
+  /// "Natural", "Neural"), then enhanced or premium voices, then Google's,
+  /// then standard voices; novelty voices are -1 and never chosen when
+  /// another voice exists.
+  int get quality {
+    final String n = name.toLowerCase();
+    final String base = n.split(RegExp(r'[\s(]')).first;
+    if (_novelty.contains(n) || _novelty.contains(base)) return -1;
+    if (n.contains('natural') || n.contains('neural')) return 4;
+    final String hint = (qualityHint ?? '').toLowerCase();
+    final int? level = int.tryParse(hint);
+    if (n.contains('premium') ||
+        n.contains('enhanced') ||
+        hint.contains('premium') ||
+        hint.contains('enhanced') ||
+        (level != null && level >= 400)) {
+      return 3;
+    }
+    if (n.startsWith('google') || n.contains('siri')) return 2;
+    if (n.contains('espeak') || n.contains('compact')) return 0;
+    return 1;
+  }
 
   bool get isEnglish => locale.toLowerCase().startsWith('en');
 
@@ -77,9 +134,26 @@ String normaliseLocale(String locale) {
 /// Picks voices for a dialogue: each speaker keeps one voice, speakers with
 /// the same accent get different voices when the device has several.
 class VoiceCasting {
-  VoiceCasting(List<DeviceVoice> voices)
-    : _voices = voices.where((DeviceVoice v) => v.isEnglish).toList()
-        ..sort((DeviceVoice a, DeviceVoice b) => a.name.compareTo(b.name));
+  /// Keeps English voices, most natural first (novelty voices only when
+  /// nothing else exists).
+  VoiceCasting(List<DeviceVoice> voices) : _voices = _rank(voices);
+
+  static List<DeviceVoice> _rank(List<DeviceVoice> voices) {
+    final List<DeviceVoice> english = voices
+        .where((DeviceVoice v) => v.isEnglish)
+        .toList();
+    final List<DeviceVoice> usable = english
+        .where((DeviceVoice v) => v.quality >= 0)
+        .toList();
+    return (usable.isEmpty ? english : usable)
+      ..sort((DeviceVoice a, DeviceVoice b) {
+        final int byQuality = b.quality.compareTo(a.quality);
+        return byQuality != 0 ? byQuality : a.name.compareTo(b.name);
+      });
+  }
+
+  /// True when at least one neural ("Natural") voice is available.
+  bool get hasNaturalVoices => _voices.any((DeviceVoice v) => v.quality >= 4);
 
   final List<DeviceVoice> _voices;
   final Map<String, DeviceVoice?> _cast = <String, DeviceVoice?>{};
