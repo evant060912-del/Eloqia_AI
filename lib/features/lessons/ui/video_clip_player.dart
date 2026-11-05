@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
@@ -53,8 +54,10 @@ class VideoClipSession {
   }
 
   Future<void> _initMp4(String url) async {
+    final String? subtitles = clip.subtitlesAsset;
     final VideoPlayerController controller = VideoPlayerController.networkUrl(
       Uri.parse(url),
+      closedCaptionFile: subtitles == null ? null : _loadSubtitles(subtitles),
     );
     _video = controller;
     _timeout = Timer(loadTimeout, () {
@@ -75,9 +78,40 @@ class VideoClipSession {
     }
   }
 
+  static Future<ClosedCaptionFile> _loadSubtitles(String asset) async =>
+      WebVTTCaptionFile(await rootBundle.loadString(asset));
+
+  /// End of the passage being replayed (pause there).
+  Duration? _stopAt;
+
   void _watch() {
     final VideoPlayerController? c = _video;
-    if (c != null && c.value.hasError) _fail(c.value.errorDescription);
+    if (c == null) return;
+    if (c.value.hasError) _fail(c.value.errorDescription);
+    final Duration? stop = _stopAt;
+    if (stop != null && c.value.position >= stop) {
+      _stopAt = null;
+      unawaited(c.pause());
+    }
+  }
+
+  /// Plays one passage and stops at its end (YouTube: plays from its start).
+  Future<void> playSegment(ClipSegment segment) async {
+    final VideoPlayerController? video = _video;
+    if (video != null && state.value == VideoLoadState.ready) {
+      _stopAt = segment.end;
+      await video.seekTo(segment.start);
+      await video.play();
+      return;
+    }
+    final YoutubePlayerController? youtube = _youtube;
+    if (youtube != null) {
+      await youtube.seekTo(
+        seconds: segment.startSeconds.toDouble(),
+        allowSeekAhead: true,
+      );
+      await youtube.playVideo();
+    }
   }
 
   void _fail(Object? reason) {
@@ -128,6 +162,7 @@ class _VideoClipPlayerState extends State<VideoClipPlayer> {
       widget.session ?? VideoClipSession(widget.clip);
   bool get _owned => widget.session == null;
   bool _transcriptOpen = false;
+  bool _captions = true;
 
   @override
   void initState() {
@@ -184,6 +219,31 @@ class _VideoClipPlayerState extends State<VideoClipPlayer> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                if (widget.clip.segments.isNotEmpty) ...<Widget>[
+                  const Text(
+                    'Replay a passage',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      for (final ClipSegment segment in widget.clip.segments)
+                        ActionChip(
+                          avatar: const Icon(Icons.replay_rounded, size: 16),
+                          label: Text(segment.label),
+                          onPressed: () =>
+                              unawaited(_session.playSegment(segment)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 Text(
                   widget.clip.credit,
                   style: const TextStyle(
@@ -295,6 +355,11 @@ class _VideoClipPlayerState extends State<VideoClipPlayer> {
                   fit: StackFit.expand,
                   children: <Widget>[
                     VideoPlayer(c),
+                    if (_captions && value.caption.text.isNotEmpty)
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ClosedCaption(text: value.caption.text),
+                      ),
                     if (notStarted)
                       Container(
                         color: Colors.black38,
@@ -349,6 +414,17 @@ class _VideoClipPlayerState extends State<VideoClipPlayer> {
                   icon: const Icon(Icons.replay_10_rounded),
                   color: AppColors.textPrimary,
                 ),
+                if (widget.clip.subtitlesAsset != null)
+                  IconButton(
+                    tooltip: _captions ? 'Hide subtitles' : 'Show subtitles',
+                    onPressed: () => setState(() => _captions = !_captions),
+                    icon: Icon(
+                      _captions
+                          ? Icons.closed_caption_rounded
+                          : Icons.closed_caption_off_rounded,
+                    ),
+                    color: AppColors.textPrimary,
+                  ),
                 const Spacer(),
                 Padding(
                   padding: const EdgeInsets.only(right: 14),

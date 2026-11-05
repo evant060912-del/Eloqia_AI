@@ -6,6 +6,35 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Media library (PR 16: architecture)
+
+## Added
+
+* "Real English videos" library (Listening → card at the top): filters by
+  accent (🇺🇸 🇬🇧 🇦🇺), level A1 to C2, category (10: Technology, Science,
+  Literature, Medicine, Finance & Business, History, Culture & Society,
+  Environment, Arts & Entertainment, Everyday English) and track (general or
+  academic); a recommended video; an honest empty state.
+* CEFR level descriptors (speech rate, delivery, vocabulary, grammar, topics)
+  so a C1 video is placed by the video itself, not by harder questions.
+* Preferred accent, saved on the device: orders the listening library and the
+  media library and weighs the listening recommendation (with real videos
+  before synthetic voices).
+* Per video: key vocabulary and idioms with the example from the video
+  (folded card under the player), replayable passages (`ClipSegment`, real
+  timings only) and synchronised subtitles for MP4 (`subtitlesAsset`,
+  WebVTT, on/off button); YouTube keeps its own synchronised captions.
+* `tools/make_subtitles.py`: free local subtitles (faster-whisper) for
+  public-domain videos, with sentence timings to choose passages.
+* `MediaCoverage`: videos per category, level and accent, creators per
+  accent, categories below 20 videos.
+* `docs/MEDIA_LIBRARY.md`: levels, categories, licences, workflow.
+
+## Changed
+
+* The six VOA video lessons now carry library information (Everyday English,
+  American, VOA Learning English) with vocabulary and idioms.
+
 # [Unreleased] — Real-video player fixes
 
 ## Fixed

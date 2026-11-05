@@ -15,6 +15,7 @@ import '../content/vocabulary_content.dart';
 import '../content/video_listening_content.dart';
 import '../content/vocabulary_content_more.dart';
 import '../models/lesson_models.dart';
+import '../../../services/voice/listening_accents.dart';
 
 class LessonCatalog {
   LessonCatalog._();
@@ -118,9 +119,13 @@ class LessonEngine {
     LevelAssessmentResult? assessment,
     List<LearningSession> sessions = const <LearningSession>[],
     List<LearningMemory> memories = const <LearningMemory>[],
+    ListeningAccent? accent,
   }) {
     final level = effectiveLevel(profile: profile, assessment: assessment);
     final Set<String> done = completedLessonIds(sessions);
+    bool inAccent(Lesson l) =>
+        accent != null &&
+        (l.media?.accent == accent || l.accents.contains(accent));
     final Set<String> weak = weakTopics(memories);
     final Set<String> interests = <String>{
       for (final String i in profile.interests) i.toLowerCase(),
@@ -137,6 +142,10 @@ class LessonEngine {
         score += 8;
       }
       score += lesson.tags.where(interests.contains).length * 2;
+      // Listening: real people before synthetic voices, and the accent the
+      // learner chose to work on.
+      if (lesson.video != null) score += 3;
+      if (inAccent(lesson)) score += 5;
       if (score > bestScore) {
         best = lesson;
         bestScore = score;
@@ -152,6 +161,7 @@ class LessonEngine {
         'It fits your stated interests or goal.',
       if (done.contains(chosen.id))
         'You completed this before; this is a review.',
+      if (inAccent(chosen)) 'It trains the ${accent!.label} accent you chose.',
     ];
     return LessonChoice(lesson: chosen, reason: reasons.join(' '));
   }
