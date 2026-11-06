@@ -45,6 +45,13 @@ vocabulaire, grammaire, sujet), pas d'après la difficulté des questions.
 | 🇦🇺 | ABC Australia, Australian Academy of Science, chaînes de vulgarisation | Lecteur YouTube officiel |
 | Tous | LibriVox (livres lus, domaine public) | Audio + texte |
 
+Attention VOA : seuls les contenus **écrits par VOA** sont dans le domaine
+public. Les articles adaptés d'agences (mention « reported for Reuters/AP/AFP »)
+sont exclus.
+
+Enregistrements audio (reportages, lectures) : `VideoClip.mp4(url: '….mp3',
+audioOnly: true)` affiche un panneau audio au lieu d'une image.
+
 Exclus : licences « NC » (TED, MIT OCW…), téléchargement de vidéos YouTube,
 copie de transcriptions protégées. **Diversité** : `MediaCoverage.creatorsFor`
 compte les créateurs par accent ; varier chaînes, intervenants et formats.

@@ -6,6 +6,24 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Media content, batch 1 (PR 17)
+
+## Added
+
+* Real audio recordings in the media library (`VideoClip.mp4(audioOnly:
+  true)`): an audio panel with play/pause, subtitles and the usual controls.
+* History (B2, academic): "Abraham Lincoln: the road to civil war", VOA
+  America's Presidents (11 min, written by VOA).
+* Literature (B2): "The Gift of the Magi" by O. Henry (1906), VOA American
+  Stories reading (14 min), with questions on irony and meaning.
+* Both with key vocabulary, idioms, explained questions and transcript
+  excerpts after answering.
+
+## Notes
+
+* Only stories written by VOA are used: VOA articles adapted from news
+  agencies (Reuters, AP, AFP) are not public domain and are left out.
+
 # [Unreleased] — Media library (PR 16: architecture)
 
 ## Added
