@@ -225,6 +225,7 @@ class VideoClip {
     this.publicDomain = true,
     this.subtitlesAsset,
     this.segments = const <ClipSegment>[],
+    this.audioOnly = false,
   }) : youtubeId = null,
        startSeconds = 0,
        endSeconds = null;
@@ -239,7 +240,8 @@ class VideoClip {
   }) : youtubeId = id,
        url = null,
        publicDomain = false,
-       subtitlesAsset = null;
+       subtitlesAsset = null,
+       audioOnly = false;
 
   final String? url;
   final String? youtubeId;
@@ -261,6 +263,10 @@ class VideoClip {
 
   /// Passages the learner can replay with one tap (real timings only).
   final List<ClipSegment> segments;
+
+  /// A real recording without picture (MP3 report, reading): the player
+  /// shows an audio panel instead of a video frame.
+  final bool audioOnly;
 
   bool get isYoutube => youtubeId != null;
 }

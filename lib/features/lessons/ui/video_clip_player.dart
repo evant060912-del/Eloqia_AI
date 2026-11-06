@@ -347,46 +347,51 @@ class _VideoClipPlayerState extends State<VideoClipPlayer> {
             !value.isPlaying && value.position == Duration.zero;
         return Column(
           children: <Widget>[
-            AspectRatio(
-              aspectRatio: value.aspectRatio == 0 ? 16 / 9 : value.aspectRatio,
-              child: GestureDetector(
-                onTap: () => _toggle(c),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    VideoPlayer(c),
-                    if (_captions && value.caption.text.isNotEmpty)
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: ClosedCaption(text: value.caption.text),
-                      ),
-                    if (notStarted)
-                      Container(
-                        color: Colors.black38,
-                        alignment: Alignment.center,
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(
-                              Icons.play_circle_fill_rounded,
-                              color: Colors.white,
-                              size: 64,
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Tap to play · sound on',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+            if (widget.clip.audioOnly)
+              _audioPanel(c, value)
+            else
+              AspectRatio(
+                aspectRatio: value.aspectRatio == 0
+                    ? 16 / 9
+                    : value.aspectRatio,
+                child: GestureDetector(
+                  onTap: () => _toggle(c),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      VideoPlayer(c),
+                      if (_captions && value.caption.text.isNotEmpty)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: ClosedCaption(text: value.caption.text),
                         ),
-                      ),
-                  ],
+                      if (notStarted)
+                        Container(
+                          color: Colors.black38,
+                          alignment: Alignment.center,
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                Icons.play_circle_fill_rounded,
+                                color: Colors.white,
+                                size: 64,
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Tap to play · sound on',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
             VideoProgressIndicator(
               c,
               allowScrubbing: true,
@@ -441,6 +446,58 @@ class _VideoClipPlayerState extends State<VideoClipPlayer> {
           ],
         );
       },
+    );
+  }
+
+  /// Audio recordings: a compact panel; the (invisible) player element
+  /// stays in the tree so browsers keep playing it.
+  Widget _audioPanel(VideoPlayerController c, VideoPlayerValue value) {
+    final String? caption = _captions && value.caption.text.isNotEmpty
+        ? value.caption.text
+        : null;
+    return InkWell(
+      onTap: () => _toggle(c),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+        color: AppColors.primary.withValues(alpha: 0.08),
+        child: Column(
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                SizedBox(width: 1, height: 1, child: VideoPlayer(c)),
+                Icon(
+                  value.isPlaying
+                      ? Icons.graphic_eq_rounded
+                      : Icons.headphones_rounded,
+                  color: AppColors.primaryBright,
+                  size: 34,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    value.isPlaying
+                        ? 'Listening… tap to pause'
+                        : 'Real audio report · tap to play (sound on)',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (caption != null) ...<Widget>[
+              const SizedBox(height: 10),
+              Text(
+                caption,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
