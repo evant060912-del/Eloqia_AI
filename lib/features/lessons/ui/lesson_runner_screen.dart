@@ -16,6 +16,7 @@ import 'exercise_widgets.dart';
 import 'feedback_panel.dart';
 import 'listening_player.dart';
 import 'video_clip_player.dart';
+import '../media/media_vocabulary_card.dart';
 
 enum _Stage { intro, exercise, complete }
 
@@ -625,6 +626,10 @@ class _LessonRunnerScreenState extends State<LessonRunnerScreen> {
                   transcript: widget.lesson.audio,
                   showTranscript: outcome != null,
                 ),
+                if (widget.lesson.media != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  MediaVocabularyCard(media: widget.lesson.media!),
+                ],
                 const SizedBox(height: 14),
               ] else if (widget.lesson.audio.isNotEmpty) ...<Widget>[
                 ListeningPlayer(

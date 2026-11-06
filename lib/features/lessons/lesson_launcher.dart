@@ -17,6 +17,8 @@ import 'review/review_service.dart';
 import 'review/review_session.dart';
 import 'ui/lesson_library_screen.dart';
 import 'ui/lesson_runner_screen.dart';
+import '../../services/voice/accent_preference.dart';
+import '../../services/voice/listening_accents.dart';
 
 /// Everything the lesson engine needs, loaded from the existing services.
 class LessonContext {
@@ -26,6 +28,7 @@ class LessonContext {
     required this.sessions,
     required this.memories,
     required this.progress,
+    this.accent,
   });
 
   final LearningProfile profile;
@@ -34,6 +37,9 @@ class LessonContext {
   final List<LearningMemory> memories;
   final Progress progress;
 
+  /// Accent the learner chose to work on (listening), if any.
+  final ListeningAccent? accent;
+
   static Future<LessonContext> load() async {
     final List<Object?> loaded = await Future.wait<Object?>(<Future<Object?>>[
       LearningProfileService.getProfile(),
@@ -41,6 +47,7 @@ class LessonContext {
       LearningSessionService.getHistory(),
       MemoryService.getActiveMemories(),
       LearningProgressService.getProgress(),
+      AccentPreference.load(),
     ]);
     return LessonContext(
       profile: loaded[0]! as LearningProfile,
@@ -48,6 +55,7 @@ class LessonContext {
       sessions: loaded[2]! as List<LearningSession>,
       memories: loaded[3]! as List<LearningMemory>,
       progress: loaded[4]! as Progress,
+      accent: loaded[5] as ListeningAccent?,
     );
   }
 
@@ -57,6 +65,7 @@ class LessonContext {
     assessment: assessment,
     sessions: sessions,
     memories: memories,
+    accent: accent,
   );
 
   LessonChoice recommend() => LessonEngine.recommend(

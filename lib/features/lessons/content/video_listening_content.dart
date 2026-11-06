@@ -1,3 +1,4 @@
+import '../../../services/voice/listening_accents.dart';
 import '../models/lesson_models.dart';
 import 'content_helpers.dart';
 
@@ -28,6 +29,40 @@ final List<Lesson> videoListeningLessons = <Lesson>[
       sourcePage:
           'https://learningenglish.voanews.com/a/lets-learn-english-lesson-'
           'one/3111026.html',
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.everydayEnglish,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'apartment',
+          'a home of rooms on one floor of a building',
+          example: 'My new apartment! Yes!',
+        ),
+        VocabItem(
+          'street',
+          'a road in a town, used in addresses',
+          example: '1400 Irving Street',
+        ),
+        VocabItem(
+          'spell',
+          'to say the letters of a word one by one',
+          example: 'A-N-N-A',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'Nice to meet you',
+          'what we say when we meet someone for the first time',
+          example: 'Nice to meet you.',
+        ),
+        VocabItem(
+          "Let's try that again",
+          'let us do it one more time, better',
+          example: 'Let’s try that again.',
+        ),
+      ],
     ),
     audio: const <AudioLine>[
       AudioLine('Pete', 'Hi! Are you Anna?'),
@@ -122,6 +157,50 @@ final List<Lesson> videoListeningLessons = <Lesson>[
       sourcePage:
           'https://learningenglish.voanews.com/a/lets-learn-english-level-2-'
           'lesson1/3960391.html',
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.everydayEnglish,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'budget cuts',
+          'decisions to spend less money',
+          example: 'I have heard people talking about budget cuts.',
+        ),
+        VocabItem(
+          'raise',
+          'more money for the same job',
+          example: 'Maybe we’re all getting raises!',
+        ),
+        VocabItem(
+          'gossip',
+          'talk about other people’s private matters',
+          example: 'We shouldn’t gossip.',
+        ),
+        VocabItem(
+          'rumor (rumour)',
+          'a story people repeat that may not be true',
+          example: 'That’s how rumors start.',
+        ),
+        VocabItem(
+          'résumé',
+          'a document about your studies and jobs (UK: CV)',
+          example: 'Update your résumé.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'to lose one’s job',
+          'to be fired, to stop having work',
+          example: 'People lose their jobs.',
+        ),
+        VocabItem(
+          'to do a great job',
+          'to work very well',
+          example: 'You’ve done a great job as a videographer.',
+        ),
+      ],
     ),
     audio: const <AudioLine>[
       AudioLine(
@@ -315,6 +394,40 @@ final List<Lesson> videoListeningLessons = <Lesson>[
           'https://learningenglish.voanews.com/a/lets-learn-english-lesson-2-'
           'hello/3113733.html',
     ),
+    media: const MediaInfo(
+      category: ContentCategory.everydayEnglish,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'roommate',
+          'a person who shares an apartment with you',
+          example: 'Marsha is my roommate.',
+        ),
+        VocabItem(
+          'new to (a place)',
+          'arrived there recently',
+          example: 'She is new to D.C.',
+        ),
+        VocabItem(
+          'remember to',
+          'do not forget to',
+          example: 'Remember to call Marsha at work.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'Here I come!',
+          'I am on my way, ready for something new',
+          example: 'Apartment C2, here I come!',
+        ),
+        VocabItem(
+          'I have to go',
+          'I must leave now',
+          example: 'I have to go now.',
+        ),
+      ],
+    ),
     audio: const <AudioLine>[
       AudioLine('Jonathan', 'Hey, Pete! Who’s your friend?'),
       AudioLine('Pete', 'She is Anna. She is new to D.C.'),
@@ -417,6 +530,41 @@ final List<Lesson> videoListeningLessons = <Lesson>[
       sourcePage:
           'https://learningenglish.voanews.com/a/lets-learn-english-lesson-3-'
           'i-am-here/3126527.html',
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.everydayEnglish,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'supermarket',
+          'a large shop that sells food',
+          example: 'Is there a supermarket near here?',
+        ),
+        VocabItem('near', 'not far from', example: 'It is near the apartment.'),
+        VocabItem(
+          'cook',
+          'to make food; also a person who makes food',
+          example: 'I want to cook dinner.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'You have the wrong number',
+          'you called the wrong person by mistake',
+          example: 'You have the wrong number.',
+        ),
+        VocabItem(
+          'One more time',
+          'again',
+          example: 'One more time. 555-8986.',
+        ),
+        VocabItem(
+          'Until next time',
+          'goodbye, see you later',
+          example: 'Until next time! Bye!',
+        ),
+      ],
     ),
     audio: const <AudioLine>[
       AudioLine(
@@ -545,6 +693,60 @@ final List<Lesson> videoListeningLessons = <Lesson>[
       sourcePage:
           'https://learningenglish.voanews.com/a/lets-learn-english-level-2-'
           'lesson-2/3960471.html',
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.everydayEnglish,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'assignment',
+          'a piece of work given to someone',
+          example: 'Ms. Weaver is giving new assignments out.',
+        ),
+        VocabItem(
+          'cheerful',
+          'happy and positive',
+          example: 'You are very cheerful.',
+        ),
+        VocabItem(
+          'want ads',
+          'job offers printed in a newspaper',
+          example: 'Tear these want ads up!',
+        ),
+        VocabItem(
+          'grumpy',
+          'in a bad mood, not friendly',
+          example: 'She said I was grumpy.',
+        ),
+        VocabItem(
+          'skills',
+          'things you can do well',
+          example: 'Find out if you have the skills for this job.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'people person',
+          'someone who likes being with people',
+          example: 'You’re a people person.',
+        ),
+        VocabItem(
+          'team player',
+          'someone who works well with others',
+          example: 'You’re also a team player.',
+        ),
+        VocabItem(
+          'Wish me luck',
+          'hope that things go well for me',
+          example: 'Wish me luck.',
+        ),
+        VocabItem(
+          'Just be yourself',
+          'act naturally, do not pretend',
+          example: 'Just be yourself, Pete.',
+        ),
+      ],
     ),
     audio: const <AudioLine>[
       AudioLine(
@@ -726,6 +928,50 @@ final List<Lesson> videoListeningLessons = <Lesson>[
       sourcePage:
           'https://learningenglish.voanews.com/a/lets-learn-english-level-2-'
           'lesson-3/4027340.html',
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.everydayEnglish,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'consultant',
+          'an expert who gives advice',
+          example: 'A consultant who will help us with our new show.',
+        ),
+        VocabItem(
+          'commute',
+          'the trip to work and back',
+          example: 'It added too much time to our commute!',
+        ),
+        VocabItem(
+          'point of view',
+          'a way of seeing a situation',
+          example: 'A different point of view.',
+        ),
+        VocabItem(
+          'scooter',
+          'a small vehicle you stand on',
+          example: 'A scooter would be much faster.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'to take turns',
+          'to speak or act one after the other',
+          example: 'You have to take turns.',
+        ),
+        VocabItem(
+          'on time',
+          'at the right time, not late',
+          example: 'He did not come on time.',
+        ),
+        VocabItem(
+          'to waste time',
+          'to use time badly',
+          example: 'Pete had wasted time waiting for coffee.',
+        ),
+      ],
     ),
     audio: const <AudioLine>[
       AudioLine(

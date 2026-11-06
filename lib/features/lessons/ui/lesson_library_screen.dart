@@ -5,7 +5,9 @@ import '../../../theme/app_colors.dart';
 import '../../onboarding/assessment/level_assessment_data.dart';
 import '../engine/lesson_engine.dart';
 import '../lesson_launcher.dart';
+import '../media/media_library_screen.dart';
 import '../models/lesson_models.dart';
+import '../../../services/voice/accent_preference.dart';
 
 /// Every lesson of one skill, by level, with the recommended one first.
 class LessonLibraryScreen extends StatefulWidget {
@@ -30,6 +32,9 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
   /// Listening only: show only lessons with a real video.
   bool _videosOnly = false;
 
+  /// Accent the learner chose to work on: its lessons come first.
+  ListeningAccent? _preferred;
+
   @override
   void initState() {
     super.initState();
@@ -39,15 +44,26 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
   Future<void> _load() async {
     try {
       final LessonContext data = await (widget.loader ?? LessonContext.load)();
+      final ListeningAccent? preferred = await AccentPreference.load();
       if (!mounted) return;
       setState(() {
         _data = data;
+        _preferred = preferred;
         _error = null;
       });
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _error = error);
     }
+  }
+
+  /// 0 for lessons in the preferred accent, 1 otherwise.
+  int _accentRank(Lesson lesson) {
+    final ListeningAccent? preferred = _preferred;
+    if (preferred == null) return 0;
+    final bool heard =
+        lesson.media?.accent == preferred || lesson.accents.contains(preferred);
+    return heard ? 0 : 1;
   }
 
   Future<void> _open(LessonChoice choice) async {
@@ -102,7 +118,11 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
           ..sort((Lesson a, Lesson b) {
             final int byLevel = a.levelIndex.compareTo(b.levelIndex);
             if (byLevel != 0) return byLevel;
-            return (a.video == null ? 1 : 0).compareTo(b.video == null ? 1 : 0);
+            final int byVideo = (a.video == null ? 1 : 0).compareTo(
+              b.video == null ? 1 : 0,
+            );
+            if (byVideo != 0) return byVideo;
+            return _accentRank(a).compareTo(_accentRank(b));
           });
     final List<int> levels = lessons
         .map((Lesson l) => l.levelIndex)
@@ -121,6 +141,17 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               if (listening) ...<Widget>[
+                const SizedBox(height: 12),
+                _MediaLibraryCard(
+                  onOpen: () async {
+                    await Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MediaLibraryScreen(),
+                      ),
+                    );
+                    await _load();
+                  },
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -184,6 +215,64 @@ class _LessonLibraryScreenState extends State<LessonLibraryScreen> {
                     ),
                   ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaLibraryCard extends StatelessWidget {
+  const _MediaLibraryCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.electricBlue.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        key: const Key('open-media-library'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: onOpen,
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                Icons.smart_display_outlined,
+                color: AppColors.electricBlue,
+                size: 30,
+              ),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Real English videos',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Real people by accent, level A1–C2 and topic, with '
+                      'vocabulary and expressions.',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
             ],
           ),
         ),

@@ -1,5 +1,8 @@
 import '../../../services/voice/listening_accents.dart';
 import '../../onboarding/assessment/level_assessment_data.dart';
+import 'media_models.dart';
+
+export 'media_models.dart';
 
 enum LessonSkill { grammar, vocabulary, reading, listening }
 
@@ -220,6 +223,8 @@ class VideoClip {
     required this.credit,
     required this.sourcePage,
     this.publicDomain = true,
+    this.subtitlesAsset,
+    this.segments = const <ClipSegment>[],
   }) : youtubeId = null,
        startSeconds = 0,
        endSeconds = null;
@@ -230,9 +235,11 @@ class VideoClip {
     required this.sourcePage,
     this.startSeconds = 0,
     this.endSeconds,
+    this.segments = const <ClipSegment>[],
   }) : youtubeId = id,
        url = null,
-       publicDomain = false;
+       publicDomain = false,
+       subtitlesAsset = null;
 
   final String? url;
   final String? youtubeId;
@@ -247,6 +254,13 @@ class VideoClip {
   /// Part of a YouTube video to play (seconds).
   final int startSeconds;
   final int? endSeconds;
+
+  /// Synchronised subtitles (WebVTT in the app's assets) for MP4 files;
+  /// YouTube shows its own captions. See tools/make_subtitles.py.
+  final String? subtitlesAsset;
+
+  /// Passages the learner can replay with one tap (real timings only).
+  final List<ClipSegment> segments;
 
   bool get isYoutube => youtubeId != null;
 }
@@ -278,6 +292,7 @@ class Lesson {
     this.passage,
     this.audio = const <AudioLine>[],
     this.video,
+    this.media,
   });
 
   final String id;
@@ -312,6 +327,10 @@ class Lesson {
   /// A real video for this listening lesson. Its transcript, when it may be
   /// shown (public domain), is in [audio] and appears after answering.
   final VideoClip? video;
+
+  /// Library information (category, track, accent, vocabulary, idioms) of
+  /// a lesson built on real media.
+  final MediaInfo? media;
 
   /// Accents heard in the audio (listening library filters).
   Set<ListeningAccent> get accents => <ListeningAccent>{
