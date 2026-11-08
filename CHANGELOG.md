@@ -6,6 +6,20 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Urgent: Mia's services diagnostics (PR 20)
+
+## Added
+
+* Backend `GET /v1/system/diagnostics`: live checks of OpenAI (chat, reviews,
+  feedback) and Cartesia (Mia's voice) with a plain-language fix for each
+  problem: missing key, refused key, no credit left, quota, model or voice
+  not found, network. Keys are never returned.
+* Cartesia failures when Mia speaks are now classified (e.g. no credit) and
+  returned as `reason`; the last one is shown in the diagnostics.
+* App: Profile → "System status" screen showing the server, OpenAI and
+  Cartesia states, with what to do (including the launch command when the
+  app was started without the server address).
+
 # [Unreleased] — Media content, batch 3 (PR 19)
 
 ## Added

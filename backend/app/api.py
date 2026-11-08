@@ -27,6 +27,12 @@ from app.security import (
     _is_local_development_request,
     require_learner,
 )
+from app.diagnostics import (
+    clear_tts_error,
+    diagnostics,
+    explain,
+    record_tts_error,
+)
 from app.tts import CartesiaError, synthesize
 from app.voice_sessions import create_voice_session
 
@@ -91,6 +97,14 @@ async def health_check() -> dict[str, object]:
         "service": "eloqia-api",
         "voice_service": "ready",
     }
+
+
+@app.get("/v1/system/diagnostics", tags=["system"])
+async def system_diagnostics() -> dict[str, object]:
+    """Live state of OpenAI (chat, reviews) and Cartesia (Mia's voice),
+    with a plain-language fix for each problem. Keys are never returned."""
+
+    return await diagnostics(settings)
 
 
 # ============================================================================
@@ -206,10 +220,23 @@ async def speak_as_mia(
         )
     except CartesiaError as error:
         logger.warning("Cartesia speech failed: %s", error)
+        text = str(error)
+        code: int | None = None
+        if text.startswith("status "):
+            try:
+                code = int(text.split()[1].rstrip(":"))
+            except ValueError:
+                code = None
+        record_tts_error(code, text)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail={"code": "speech_provider_failed"},
+            detail={
+                "code": "speech_provider_failed",
+                "reason": explain("Cartesia", code, text)["state"],
+            },
         ) from None
+
+    clear_tts_error()
 
     return Response(
         content=audio,
