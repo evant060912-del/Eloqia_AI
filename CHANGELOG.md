@@ -6,6 +6,14 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Media content, batch 3 (PR 19)
+
+## Added
+
+* Literature (C1, academic): "The Tell-Tale Heart" by Edgar Allan Poe (1843),
+  VOA American Stories reading (13 min): unreliable narrator, tension,
+  literary vocabulary and idioms. Mature theme flagged in the description.
+
 # [Unreleased] — Media content, batch 2 (PR 18)
 
 ## Added
