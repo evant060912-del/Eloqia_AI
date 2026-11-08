@@ -6,6 +6,21 @@ This changelog tracks the evolution of the project step by step, from its first 
 
 ---
 
+# [Unreleased] — Media content, batch 2 (PR 18)
+
+## Added
+
+* Environment (B1): "Yellowstone: the world's first national park", VOA
+  report by Andrew Smith (4 min), facts and figures.
+* Culture & Society (B2): "Idioms: beating a dead horse", VOA Words and
+  Their Stories by Anna Matteo (4 min), idioms about useless repetition.
+* Both with vocabulary, idioms, explained questions and the transcript.
+
+## Notes
+
+* Words and Their Stories episodes that end with a commercial song are left
+  out (the song is not public domain).
+
 # [Unreleased] — Media content, batch 1 (PR 17)
 
 ## Added

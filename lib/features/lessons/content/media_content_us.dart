@@ -507,4 +507,400 @@ final List<Lesson> mediaLessonsUs = <Lesson>[
       ]),
     ],
   ),
+
+  Lesson(
+    id: 'media-voa-yellowstone',
+    title: 'Yellowstone: the world’s first national park',
+    description:
+        'A real VOA report on a super volcano, geysers and wild '
+        'bison.',
+    skill: LessonSkill.listening,
+    levelIndex: 2,
+    topic: 'numbers',
+    estimatedMinutes: 8,
+    xpReward: 35,
+    objective: 'Catch facts and figures in a 4-minute nature report.',
+    tags: const <String>['travel', 'science'],
+    video: const VideoClip.mp4(
+      url:
+          'https://voa-audio.voanews.eu/vle/2025/02/13/'
+          '776add5c-bbc5-4a14-83a0-08dd4a843460.mp3',
+      credit:
+          'VOA Learning English, “Yellowstone: The World’s First National '
+          'Park”, written by Andrew Smith. Public domain (U.S. government '
+          'work).',
+      sourcePage:
+          'https://learningenglish.voanews.com/a/yellowstone-the-world-s-'
+          'first-national-park/7974034.html',
+      audioOnly: true,
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.environment,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English – As It Is',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'geothermal',
+          'caused by heat from under the ground',
+          example: 'It is famous for its geothermal activity.',
+        ),
+        VocabItem(
+          'geyser',
+          'a hot spring that shoots boiling water into the air',
+          example: 'The park is home to more than 300 geysers.',
+        ),
+        VocabItem(
+          'plateau',
+          'a large flat area of high land',
+          example: 'Yellowstone is on a high plateau.',
+        ),
+        VocabItem(
+          'to erupt',
+          'to explode or shoot out suddenly (volcano, geyser)',
+          example: 'It erupts about every 90 minutes.',
+        ),
+        VocabItem(
+          'herd / population',
+          'a group of animals / the number living in a place',
+          example: 'The bison population is about 4,500 animals.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'to take up',
+          'to cover or use an amount of space',
+          example: 'It takes up almost 9,000 square kilometers.',
+        ),
+        VocabItem(
+          'the wild west',
+          'the untamed American West of the 1800s; here, wild nature',
+          example: 'There is still a wild west in America.',
+        ),
+      ],
+    ),
+    audio: const <AudioLine>[
+      AudioLine(
+        'Andrew Smith',
+        'Yellowstone National Park in the western United States was the '
+            'world’s first national park. Established in 1872, it is famous '
+            'for its geothermal activity and wild animals. It takes up almost '
+            '9,000 square kilometers. Most of the park lies within the western '
+            'state of Wyoming.',
+      ),
+      AudioLine(
+        'Andrew Smith',
+        'It sits on top of an ancient super volcano, known as the Yellowstone '
+            'Caldera. The caldera remains an active volcano. A lake of hot '
+            'liquid rock is about six kilometers under the park.',
+      ),
+      AudioLine(
+        'Andrew Smith',
+        'The park is home to more than 300 geysers. There are more geysers '
+            'and hot springs in Yellowstone than any other place on Earth. '
+            '“Old Faithful” is the name of the park’s most famous geyser '
+            'because it erupts about every 90 minutes.',
+      ),
+      AudioLine(
+        'Andrew Smith',
+        'Yellowstone is on a high plateau with an average height of 2,400 '
+            'meters above sea level. January temperatures average between '
+            '-18 degrees and -7 degrees Celsius. However, some areas of the '
+            'park remain open to visitors throughout the year.',
+      ),
+      AudioLine(
+        'Andrew Smith',
+        'Yellowstone Canyon is about 365 meters deep. The Yellowstone River '
+            'drops 93 meters in the Lower Falls. In summer of 1988, forest '
+            'fires burned large areas of the park. Most of those areas are now '
+            'covered with plants and young trees.',
+      ),
+      AudioLine(
+        'Andrew Smith',
+        'Yellowstone is home to the largest group of wild animals in the '
+            'lower 48 United States. In 2024, park officials estimated the '
+            'bison population to be about 4,500 animals. That makes it the '
+            'largest group of wild bison in the world.',
+      ),
+    ],
+    activities: <LessonActivity>[
+      introActivity('Before you listen', const <String>[
+        'A real 4-minute VOA report (audio). Transcript after you answer.',
+        'Listen for numbers: dates, distances, temperatures and animals.',
+      ], const <String>[]),
+      practiceActivity(<Exercise>[
+        Exercise.choice(
+          id: 'm-yellow-1',
+          topic: 'numbers',
+          prompt: 'When was Yellowstone established?',
+          options: const <String>['1872', '1988', '1916'],
+          answer: '1872',
+          why: '“Established in 1872.” 1988 is the year of the big fires.',
+          evidence: 'The first sentences.',
+        ),
+        Exercise.choice(
+          id: 'm-yellow-2',
+          topic: 'numbers',
+          prompt: 'What is under the park?',
+          options: const <String>[
+            'An active super volcano',
+            'An underground river',
+            'An old gold mine',
+          ],
+          answer: 'An active super volcano',
+          why:
+              'The Yellowstone Caldera “remains an active volcano”, with hot '
+              'liquid rock about six kilometers down.',
+          evidence: 'Just after the size of the park.',
+        ),
+        Exercise.choice(
+          id: 'm-yellow-3',
+          topic: 'numbers',
+          prompt: 'Why is the geyser called “Old Faithful”?',
+          options: const <String>[
+            'It erupts regularly, about every 90 minutes',
+            'It is the oldest geyser on Earth',
+            'It never stops erupting',
+          ],
+          answer: 'It erupts regularly, about every 90 minutes',
+          why: '“Faithful” means reliable: it erupts on a regular schedule.',
+          evidence: 'The part about geysers.',
+          difficulty: 2,
+        ),
+        Exercise.trueFalse(
+          id: 'm-yellow-4',
+          topic: 'numbers',
+          prompt: 'The whole park closes in winter.',
+          answer: false,
+          why: 'Winters are very cold, but some areas stay open all year.',
+          evidence: 'The part about the plateau and temperatures.',
+        ),
+        Exercise.choice(
+          id: 'm-yellow-5',
+          topic: 'numbers',
+          prompt: 'What happened to the areas burned in 1988?',
+          options: const <String>[
+            'Plants and young trees cover most of them now',
+            'They are still bare',
+            'They were turned into roads',
+          ],
+          answer: 'Plants and young trees cover most of them now',
+          why: 'Nature came back after the fires.',
+          evidence: 'After the Lower Falls.',
+        ),
+        Exercise.fill(
+          id: 'm-yellow-6',
+          topic: 'numbers',
+          prompt: 'About ___ bison live in Yellowstone (2024 estimate).',
+          answers: const <String>['4,500', '4500'],
+          why: 'The largest group of wild bison in the world.',
+          evidence: 'The last part, about wildlife.',
+        ),
+      ]),
+    ],
+  ),
+
+  Lesson(
+    id: 'media-voa-dead-horse',
+    title: 'Idioms: “beating a dead horse”',
+    description:
+        'A real VOA programme on idioms for talking about the same '
+        'thing again and again.',
+    skill: LessonSkill.listening,
+    levelIndex: 3,
+    topic: 'implied meaning',
+    estimatedMinutes: 9,
+    xpReward: 40,
+    difficulty: 2,
+    objective:
+        'Understand and use idioms about useless repetition, and '
+        'their register.',
+    tags: const <String>['culture', 'speaking'],
+    video: const VideoClip.mp4(
+      url:
+          'https://voa-audio.voanews.eu/vle/2023/07/27/'
+          '01000000-0a00-0242-cd7f-08db8ee81da1.mp3',
+      credit:
+          'VOA Learning English, “Words and Their Stories: ‘Beating a Dead '
+          'Horse’ Is Pointless”, written by Anna Matteo. Public domain (U.S. '
+          'government work).',
+      sourcePage:
+          'https://learningenglish.voanews.com/a/beating-a-dead-horse-is-'
+          'pointless/7200547.html',
+      audioOnly: true,
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.cultureSociety,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English – Words and Their Stories',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'pointless',
+          'with no purpose, useless',
+          example:
+              'Why would anyone do something as pointless as beating a '
+              'dead animal?',
+        ),
+        VocabItem(
+          'cruel',
+          'ready to hurt others',
+          example: 'It sounds quite cruel.',
+        ),
+        VocabItem(
+          'ad nauseam',
+          'so much that people get sick of it',
+          example: 'You have talked about it ad nauseam.',
+        ),
+        VocabItem(
+          'to belabor (UK: belabour)',
+          'to explain or insist far too much',
+          example: 'Belaboring a point or an issue.',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'to beat a dead horse',
+          'to keep talking about something that cannot change',
+          example: 'Not to beat a dead horse, but…',
+        ),
+        VocabItem(
+          'to go over the same ground',
+          'to talk about the same thing again and again',
+          example: 'We’ve gone over the same ground and nothing has changed.',
+        ),
+        VocabItem(
+          'to run something into the ground',
+          'to talk about something too much',
+          example: 'I have run it into the ground.',
+        ),
+        VocabItem(
+          'to dwell on',
+          'to keep thinking or talking about something for a long time',
+          example: 'It is not a good idea to dwell on an old topic.',
+        ),
+      ],
+    ),
+    audio: const <AudioLine>[
+      AudioLine(
+        'Anna Matteo',
+        'Today’s idiom does not sound nice. In fact, it sounds quite cruel. '
+            'Today, we talk about beating a dead horse. We use the expression '
+            'to describe something that is a useless thing to do. You are just '
+            'wasting your time. There is no point.',
+      ),
+      AudioLine(
+        'Anna Matteo',
+        'Merriam-Webster’s online dictionary says this expression comes from '
+            'the mid-19th century. Back then, some people may have beaten '
+            'horses to make them go faster. But beating a dead horse would be '
+            'pointless – because it’s dead. We often use this expression in '
+            'the negative: “Not to beat a dead horse…”',
+      ),
+      AudioLine(
+        'Anna Matteo',
+        'Let’s say your friend talks about the same problem. They do not take '
+            'your advice. You can say, “Look, we’ve gone over the same ground '
+            'and nothing has changed. So, can we please change the topic?”',
+      ),
+      AudioLine(
+        'Anna Matteo',
+        'If I have a problem and talk about it too much, I have run it into '
+            'the ground. You have talked about it ad nauseam. So, it is not a '
+            'good idea to dwell on an old topic. Many people have lost good '
+            'friends from belaboring a point or an issue.',
+      ),
+      AudioLine(
+        'Anna Matteo',
+        'Not to beat a dead horse, but we really are a great resource for '
+            'learning English.',
+      ),
+    ],
+    activities: <LessonActivity>[
+      introActivity('Before you listen', const <String>[
+        'A real VOA programme about idioms (4 minutes, audio).',
+        'Listen for four ways to say “you keep talking about the same thing”, '
+            'and for where the first idiom comes from.',
+      ], const <String>[]),
+      practiceActivity(<Exercise>[
+        Exercise.choice(
+          id: 'm-horse-1',
+          topic: 'implied meaning',
+          prompt: 'What does “beating a dead horse” mean?',
+          options: const <String>[
+            'Doing or saying something useless because nothing will change',
+            'Working very hard to win',
+            'Being cruel to animals',
+          ],
+          answer:
+              'Doing or saying something useless because nothing will change',
+          why:
+              'A dead horse will not move, however much you beat it: the '
+              'effort is pointless.',
+          evidence: 'The beginning of the programme.',
+        ),
+        Exercise.choice(
+          id: 'm-horse-2',
+          topic: 'implied meaning',
+          prompt: 'Where does the expression come from?',
+          options: const <String>[
+            'The mid-19th century, when people beat horses to go faster',
+            'An old English farming law',
+            'A famous American novel',
+          ],
+          answer: 'The mid-19th century, when people beat horses to go faster',
+          why: 'According to Merriam-Webster, as the programme says.',
+          evidence: 'The part about the dictionary.',
+        ),
+        Exercise.choice(
+          id: 'm-horse-3',
+          topic: 'implied meaning',
+          prompt: 'Which expression is a polite alternative for a friend?',
+          options: const <String>[
+            '“We’ve gone over the same ground…”',
+            '“Curiosity killed the cat.”',
+            '“Make hay while the sun shines.”',
+          ],
+          answer: '“We’ve gone over the same ground…”',
+          why:
+              'Anna suggests it for horse lovers, followed by asking to '
+              'change the topic.',
+          evidence: 'The example with a friend.',
+          difficulty: 2,
+        ),
+        Exercise.choice(
+          id: 'm-horse-4',
+          topic: 'implied meaning',
+          prompt: 'What does “ad nauseam” suggest?',
+          options: const <String>[
+            'Talking so much that others feel sick of it',
+            'Talking in a very formal way',
+            'Talking about health problems',
+          ],
+          answer: 'Talking so much that others feel sick of it',
+          why: 'It means “to a sickening degree”.',
+          evidence: 'After “run it into the ground”.',
+          difficulty: 2,
+        ),
+        Exercise.trueFalse(
+          id: 'm-horse-5',
+          topic: 'implied meaning',
+          prompt:
+              'The programme says dwelling on an old topic can cost you '
+              'friends.',
+          answer: true,
+          why: '“Many people have lost good friends from belaboring a point.”',
+          evidence: 'Near the end.',
+        ),
+        Exercise.fill(
+          id: 'm-horse-6',
+          topic: 'implied meaning',
+          prompt:
+              '“Not to beat a dead ___, but we really are a great '
+              'resource.”',
+          answers: const <String>['horse'],
+          why: 'The idiom is often used in the negative, as a joke here.',
+          evidence: 'The last sentence.',
+        ),
+      ]),
+    ],
+  ),
 ];
