@@ -903,4 +903,259 @@ final List<Lesson> mediaLessonsUs = <Lesson>[
       ]),
     ],
   ),
+
+  Lesson(
+    id: 'media-voa-tell-tale-heart',
+    title: 'Edgar Allan Poe: The Tell-Tale Heart',
+    description:
+        'A real VOA reading of Poe’s classic tale told by a narrator '
+        'who insists he is not mad. Dark theme: a murder.',
+    skill: LessonSkill.listening,
+    levelIndex: 4,
+    topic: 'implied meaning',
+    estimatedMinutes: 20,
+    xpReward: 50,
+    difficulty: 3,
+    objective:
+        'Analyse an unreliable narrator: what he says, what he '
+        'reveals, and how the sound of the heart builds tension.',
+    tags: const <String>['culture', 'reading'],
+    video: const VideoClip.mp4(
+      url:
+          'https://voa-audio.voanews.eu/vle/2015/01/24/'
+          'efddbc3a-094b-40f7-9d43-499f837ee43e.mp3',
+      credit:
+          'VOA Learning English, “American Stories”: The Tell-Tale Heart by '
+          'Edgar Allan Poe (1843), adapted by Shelley Gollust, read by Shep '
+          'O’Neal. Public domain.',
+      sourcePage:
+          'https://learningenglish.voanews.com/a/tell-tale-hear-edgar-allan-'
+          'poe/2972675.html',
+      audioOnly: true,
+    ),
+    media: const MediaInfo(
+      category: ContentCategory.literature,
+      track: ContentTrack.academic,
+      accent: ListeningAccent.american,
+      creator: 'VOA Learning English – American Stories',
+      vocabulary: <VocabItem>[
+        VocabItem(
+          'vulture',
+          'a large bird that eats dead animals',
+          example: 'He had the eye of a bird, a vulture.',
+        ),
+        VocabItem(
+          'lantern',
+          'a lamp with a glass cover that you carry',
+          example: 'I put in a dark lantern.',
+        ),
+        VocabItem(
+          'terror',
+          'extreme fear',
+          example: 'It was the sound of human terror.',
+        ),
+        VocabItem(
+          'to well up',
+          'to rise from deep inside (a feeling, a sound, tears)',
+          example: 'It has welled up from deep within my own chest.',
+        ),
+        VocabItem(
+          'suspicion',
+          'a feeling that someone has done something wrong',
+          example: 'Suspicion of a crime had been aroused.',
+        ),
+        VocabItem(
+          'hideous',
+          'extremely ugly or horrible',
+          example: 'It is the beating of his hideous heart!',
+        ),
+      ],
+      idioms: <VocabItem>[
+        VocabItem(
+          'my blood ran cold',
+          'I was suddenly very afraid',
+          example: 'Whenever it fell on me, my blood ran cold.',
+        ),
+        VocabItem(
+          'to make up one’s mind',
+          'to decide',
+          example: 'I made up my mind to take the life of the old man.',
+        ),
+        VocabItem(
+          'not to move a muscle',
+          'to stay completely still',
+          example: 'I did not move a muscle for a whole hour.',
+        ),
+        VocabItem(
+          'with a light heart',
+          'feeling happy and without worry',
+          example: 'I went down to open it with a light heart.',
+        ),
+      ],
+    ),
+    audio: const <AudioLine>[
+      AudioLine(
+        'Narrator',
+        'True! Nervous -- very, very nervous I had been and am! But why will '
+            'you say that I am mad? The disease had sharpened my senses -- not '
+            'destroyed them. Above all was the sense of hearing. How, then, am '
+            'I mad? Observe how healthily -- how calmly I can tell you the '
+            'whole story.',
+      ),
+      AudioLine(
+        'Narrator',
+        'I loved the old man. He had never wronged me. For his gold I had no '
+            'desire. I think it was his eye! He had the eye of a vulture -- a '
+            'pale blue eye, with a film over it. Whenever it fell on me, my '
+            'blood ran cold.',
+      ),
+      AudioLine(
+        'Narrator',
+        'You think that I am mad. Madmen know nothing. But you should have '
+            'seen how wisely and carefully I went to work! I was never kinder '
+            'to the old man than during the whole week before I killed him.',
+      ),
+      AudioLine(
+        'Narrator',
+        'And this I did for seven long nights -- but I found the eye always '
+            'closed; for it was not the old man who was a problem for me, but '
+            'his Evil Eye.',
+      ),
+      AudioLine(
+        'Narrator',
+        'Now, there came to my ears a low, dull, quick sound, such as a watch '
+            'makes when inside a piece of cotton. It was the beating of the old '
+            'man’s heart. It increased my anger. It grew quicker and quicker, '
+            'and louder and louder every second.',
+      ),
+      AudioLine(
+        'Narrator',
+        'There entered three men, who said they were officers of the police. '
+            'A cry had been heard by a neighbor during the night. I smiled -- '
+            'for what had I to fear? The cry, I said, was my own in a dream. '
+            'I placed my own seat upon the very place under which lay the '
+            'body of the victim.',
+      ),
+      AudioLine(
+        'Narrator',
+        'The officers were satisfied. But, after a while, I had a ringing in '
+            'my ears. I found that the noise was not within my ears. It was a '
+            'low, dull, quick sound -- and yet the officers heard it not. It '
+            'grew louder -- louder -- louder! And still the men talked '
+            'pleasantly, and smiled.',
+      ),
+      AudioLine(
+        'Narrator',
+        '“Villains!” I cried, “Pretend no more! I admit the deed! Tear up the '
+            'floor boards! Here, here! It is the beating of his hideous '
+            'heart!”',
+      ),
+    ],
+    activities: <LessonActivity>[
+      introActivity('Before you listen', const <String>[
+        'A real VOA reading (13 minutes) of a famous horror story from 1843. '
+            'Mature theme: the narrator commits a murder.',
+        'Listen to HOW the narrator speaks: repetitions, exclamations, his '
+            'insistence that he is calm. Excerpts appear after you answer.',
+      ], const <String>[]),
+      practiceActivity(<Exercise>[
+        Exercise.choice(
+          id: 'm-poe-1',
+          topic: 'implied meaning',
+          prompt: 'What does the narrator try to prove from the start?',
+          options: const <String>[
+            'That he is not mad',
+            'That the old man was dangerous',
+            'That he wanted the old man’s gold',
+          ],
+          answer: 'That he is not mad',
+          why:
+              'He keeps asking “why will you say that I am mad?” and says '
+              'how calmly he can tell the story.',
+          evidence: 'The first lines.',
+        ),
+        Exercise.choice(
+          id: 'm-poe-2',
+          topic: 'implied meaning',
+          prompt: 'Why does he decide to kill the old man?',
+          options: const <String>[
+            'Because of the old man’s pale “vulture” eye',
+            'Because the old man insulted him',
+            'Because he wanted his money',
+          ],
+          answer: 'Because of the old man’s pale “vulture” eye',
+          why:
+              'He says he loved the old man and did not want his gold: only '
+              'the eye made his blood run cold.',
+          evidence: '“I think it was his eye!”',
+          difficulty: 2,
+        ),
+        Exercise.choice(
+          id: 'm-poe-3',
+          topic: 'implied meaning',
+          prompt: 'What makes him an unreliable narrator?',
+          options: const <String>[
+            'He claims to be calm and wise while describing irrational acts',
+            'He forgets the order of events',
+            'He tells the story about someone else',
+          ],
+          answer:
+              'He claims to be calm and wise while describing irrational acts',
+          why:
+              'His proofs of sanity (patience, care, kindness before the '
+              'crime) actually show obsession: we cannot trust his judgment.',
+          evidence: '“Madmen know nothing. But you should have seen me…”',
+          difficulty: 3,
+        ),
+        Exercise.choice(
+          id: 'm-poe-4',
+          topic: 'implied meaning',
+          prompt: 'Why can he not act during the first seven nights?',
+          options: const <String>[
+            'The eye is always closed',
+            'The old man is always awake',
+            'The door is locked',
+          ],
+          answer: 'The eye is always closed',
+          why: 'His problem is “not the old man… but his Evil Eye”.',
+          evidence: 'The seven nights.',
+        ),
+        Exercise.trueFalse(
+          id: 'm-poe-5',
+          topic: 'implied meaning',
+          prompt: 'The police officers hear the heart beating.',
+          answer: false,
+          why:
+              '“The officers heard it not”: the sound exists only in his '
+              'mind, which is why he confesses.',
+          evidence: 'The scene with the police.',
+          difficulty: 2,
+        ),
+        Exercise.choice(
+          id: 'm-poe-6',
+          topic: 'implied meaning',
+          prompt: 'How does Poe build tension in the final scene?',
+          options: const <String>[
+            'By repeating “louder” as the sound grows',
+            'By adding new characters',
+            'By changing narrator',
+          ],
+          answer: 'By repeating “louder” as the sound grows',
+          why:
+              'The repetition copies the rhythm of a heartbeat speeding up, '
+              'until the confession.',
+          evidence: '“It grew louder -- louder -- louder!”',
+          difficulty: 3,
+        ),
+        Exercise.fill(
+          id: 'm-poe-7',
+          topic: 'implied meaning',
+          prompt: 'Whenever the eye fell on him, his blood ran ___.',
+          answers: const <String>['cold'],
+          why: 'An idiom for sudden fear.',
+          evidence: 'The description of the eye.',
+        ),
+      ]),
+    ],
+  ),
 ];
