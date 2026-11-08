@@ -5,6 +5,7 @@ import '../../services/learning/learning_dna_service.dart';
 import '../../services/voice/voice_output_provider.dart';
 import '../../theme/app_colors.dart';
 import '../tutors/mia/widgets/mia_presence.dart';
+import '../system/system_status_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -164,6 +165,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: AppColors.textSecondary,
                         fontSize: 13,
                         height: 1.55,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Material(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    child: ListTile(
+                      key: const Key('open-system-status'),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      leading: const Icon(
+                        Icons.monitor_heart_outlined,
+                        color: AppColors.primaryBright,
+                      ),
+                      title: const Text(
+                        'System status',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Check Mia’s voice, chat and feedback services',
+                        style: TextStyle(color: AppColors.textMuted),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textMuted,
+                      ),
+                      onTap: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const SystemStatusScreen(),
+                        ),
                       ),
                     ),
                   ),
